@@ -1,0 +1,50 @@
+sidemargin = 20px
+
+body:
+    margin: 0
+    padding: 0 10% 0 10%
+    background-color: #5985de
+    font-family: 'Bitstream Vera Sans', sans-serif
+
+.document:
+    background-color: white
+    padding: 1px $sidemargin 1px $sidemargin
+    border->
+        left: 5px solid #aaf
+        right: 5px solid #aaf
+
+h1, h2, h3, h4, h5, h6:
+    font-family: 'Arial', sans-serif
+    margin-top: 1em
+    a:
+        color: #027
+
+h1.title:
+    font-size: 2.5em
+    color: #333
+    margin->
+        top: 10px
+        left: 0-$sidemargin
+        right: 0-$sidemargin
+    padding->
+        left: $sidemargin
+        right: $sidemargin
+        bottom: 10px
+    border-bottom: 2px solid #ccc
+
+pre:
+    background-color: #cdf2ae.brighten(5%)
+    padding: 5px
+    border->
+        top: 1px solid #ccc
+        bottom: 1px solid #ccc
+
+a:
+    color: #039
+
+table:
+    border->
+        collapse: collapse
+        color: #999
+    td:
+        padding: 2px

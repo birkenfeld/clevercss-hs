@@ -1,0 +1,436 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="Docutils 0.4: http://docutils.sourceforge.net/" />
+<title>CleverCSS Documentation</title>
+<style type="text/css">
+
+body {
+    margin: 0.0;
+    padding: 0.0 10.0% 0.0 10.0%;
+    background-color: #5985de;
+    font-family: "Bitstream Vera Sans", sans-serif;
+}
+
+.document {
+    background-color: white;
+    padding: 1.0px 20.0px 1.0px 20.0px;
+    border-left: 5.0px solid #aaaaff;
+    border-right: 5.0px solid #aaaaff;
+}
+
+h1 a, h2 a, h3 a, h4 a, h5 a, h6 a {
+    color: #002277;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: "Arial", sans-serif;
+    margin-top: 1.0em;
+}
+
+h1.title {
+    font-size: 2.5em;
+    color: #333333;
+    margin-top: 10.0px;
+    margin-left: -20.0px;
+    margin-right: -20.0px;
+    padding-left: 20.0px;
+    padding-right: 20.0px;
+    padding-bottom: 10.0px;
+    border-bottom: 2.0px solid #cccccc;
+}
+
+pre {
+    background-color: #d8f5c0;
+    padding: 5.0px;
+    border-top: 1.0px solid #cccccc;
+    border-bottom: 1.0px solid #cccccc;
+}
+
+a {
+    color: #003399;
+}
+
+table td {
+    padding: 2.0px;
+}
+
+table {
+    border-collapse: collapse;
+    border-color: #999999;
+}
+
+
+</style>
+</head>
+<body>
+<div class="document" id="clevercss-documentation">
+<h1 class="title">CleverCSS Documentation</h1>
+<div class="section">
+<h1><a id="introduction" name="introduction">Introduction</a></h1>
+<p>CleverCSS is a system for writing templates that are translated into CSS,
+allowing to build style sheets in a clean and structured way, following the DRY
+(don't repeat yourself) principle.</p>
+<p>The syntax is slightly different from CSS in that it relies on indentation
+instead of braces to indicate grouping, like the Python language does.</p>
+<p>The two things that enable DRY are <em>variables</em> and <em>nesting</em>.  Variables are
+names for CSS values; nesting prevents repeating selectors all over.  Here is an
+example template file:</p>
+<pre class="literal-block">
+bgcolor = #f0f0e4
+
+ul#comments, ol#comments:
+   background-color: $bgcolor
+
+   li:
+      background-color: $bgcolor
+      font-size: 1.2em
+</pre>
+<p>It would translate to (an equivalent of) this CSS stylesheet:</p>
+<pre class="literal-block">
+ul#comments, ol#comments {
+   background-color: #f0f0e4;
+}
+
+ul#comments li, ol#comments li {
+   background-color: #f0f0e4;
+   font-size: 1.2em;
+}
+</pre>
+<p>You can already see that the template doesn't repeat the <tt class="docutils literal"><span class="pre">ul#comments</span></tt> and
+<tt class="docutils literal"><span class="pre">ol#comments</span></tt> selectors.  Also, should the desired background color ever
+change, you won't need to replace a zillion references to it, but only one
+variable assignment.</p>
+<p>Other than that, CleverCSS allows expressions involving CSS values as well as
+grouping of similar property names, as shown below.</p>
+</div>
+<div class="section">
+<h1><a id="syntax" name="syntax">Syntax</a></h1>
+<p>As you have already seen, you use indentation and colons to express grouping.
+There are also other small syntactic differences to CSS that make writing
+templates less pain:</p>
+<ul class="simple">
+<li>Semicolons at line ends are optional.</li>
+<li>There are no <tt class="docutils literal"><span class="pre">/*</span> <span class="pre">...</span> <span class="pre">*/</span></tt> multiline comments, but Java-style <tt class="docutils literal"><span class="pre">//</span></tt> line
+comments.</li>
+<li>A line consisting only of <tt class="docutils literal"><span class="pre">__END__</span></tt> means &quot;end of template&quot;.  Everything
+after that line is completely ignored by CleverCSS.</li>
+</ul>
+</div>
+<div class="section">
+<h1><a id="semantics" name="semantics">Semantics</a></h1>
+<div class="section">
+<h2><a id="variable-assignments" name="variable-assignments">Variable assignments</a></h2>
+<p>You can assign to variables with an equals sign.  Variable assignments are not
+allowed inside blocks, only at the toplevel.  Variables can be assigned to
+multiple times.</p>
+<pre class="literal-block">
+foo = 1px
+body:
+   margin: $foo
+foo = 2px
+p:
+   margin: $foo
+</pre>
+<p>would result in <tt class="docutils literal"><span class="pre">body</span> <span class="pre">{</span> <span class="pre">margin:</span> <span class="pre">1px</span> <span class="pre">}</span></tt> and <tt class="docutils literal"><span class="pre">p</span> <span class="pre">{</span> <span class="pre">margin:</span> <span class="pre">2px</span> <span class="pre">}</span></tt>.  Referencing
+variables before they are defined is an error.</p>
+<p>There's also another assignment operator, <tt class="docutils literal"><span class="pre">?=</span></tt>.  It only has an effect if the
+variable is not assigned to yet.  This is helpful to provide defaults that can
+be overridden by e.g. command line definitions.  For example, after</p>
+<pre class="literal-block">
+foo = 1px
+bar = 1px
+foo = 2px
+bar ?= 2px
+</pre>
+<p><tt class="docutils literal"><span class="pre">$foo</span></tt> would be replaced by <tt class="docutils literal"><span class="pre">2px</span></tt>, while <tt class="docutils literal"><span class="pre">$bar</span></tt> would be replaced by
+<tt class="docutils literal"><span class="pre">1px</span></tt>.</p>
+</div>
+<div class="section">
+<h2><a id="selectors" name="selectors">Selectors</a></h2>
+<p>CleverCSS does not process selectors in a special way, but as shown above you
+can nest selector blocks instead of repeating parent selectors in individual
+blocks:</p>
+<pre class="literal-block">
+ul, ol:
+   foo
+   li, p:
+      bar
+      strong, em:
+         baz
+</pre>
+<p>would result in</p>
+<pre class="literal-block">
+ul, ol { foo }
+
+ul li, ul p, ol li, ol p { bar }
+
+ul li strong, ul li em, ul p strong, ul p em,
+ol li strong, ol li em, ol p strong, ol p em  { baz }
+</pre>
+<p>To achieve this, the selectors are currently bluntly split at commas, so
+extended selectors involving string matching with a comma will be handled
+incorrectly at the moment.</p>
+<p>As you see, the above handles basic parent-child relations by joining parent and
+child selectors with a space.  However, you can also explicitly determine where
+to put the parent selector, using the <tt class="docutils literal"><span class="pre">&amp;</span></tt> character:</p>
+<pre class="literal-block">
+strong, em:
+   a &amp;, #&amp;:
+      bar
+</pre>
+<p>would result in</p>
+<pre class="literal-block">
+a strong, #strong, a em, #em { bar }
+</pre>
+<p>Using this technique, you can construct selectors quite freely.  Multiple
+occurrences of the ampersand are replaced.</p>
+</div>
+<div class="section">
+<h2><a id="properties" name="properties">Properties</a></h2>
+<p>Property specifications work like in CSS: just put a colon after the property
+name.  You can use expressions or variable references (see below) only in
+property values, not in property names.</p>
+</div>
+<div class="section">
+<h2><a id="property-groups" name="property-groups">Property groups</a></h2>
+<p>Since CSS has many property names with common prefixes, CleverCSS includes one
+more shortening notation, best described by an example:</p>
+<pre class="literal-block">
+#main p:
+   font-&gt;
+      family: Verdana, sans-serif
+      size: 1.1em
+      style: italic
+</pre>
+<p>would result in</p>
+<pre class="literal-block">
+#main p {
+   font-family: Verdana, sans-serif;
+   font-size: 1.1em;
+   font-style: italic;
+}
+</pre>
+<p>The <tt class="docutils literal"><span class="pre">-&gt;</span></tt> symbol, followed by a block of properties, concatenates the name
+before it with each of the property names in the block.</p>
+</div>
+<div class="section">
+<h2><a id="values-and-expressions" name="values-and-expressions">Values and expressions</a></h2>
+<p>CleverCSS property values are of multiple types which also exist in CSS:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="51%" />
+<col width="42%" />
+<col width="7%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Type</th>
+<th class="head">Example property</th>
+<th class="head">Note</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>barewords (also called identifiers)</td>
+<td><tt class="docutils literal"><span class="pre">font-size:</span> <span class="pre">small</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr><td>strings (double or single quoted)</td>
+<td><tt class="docutils literal"><span class="pre">font-family:</span> <span class="pre">&quot;Times&quot;</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr><td>numbers (integral or floating)</td>
+<td><tt class="docutils literal"><span class="pre">line-height:</span> <span class="pre">2</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr><td>dimensions (number + unit)</td>
+<td><tt class="docutils literal"><span class="pre">margin-left:</span> <span class="pre">2px</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr><td>hexadecimal colors</td>
+<td><tt class="docutils literal"><span class="pre">color:</span> <span class="pre">#f0f0f0</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr><td>colors as color names</td>
+<td><tt class="docutils literal"><span class="pre">color:</span> <span class="pre">black</span></tt></td>
+<td>(1)</td>
+</tr>
+<tr><td>colors via the RGB function</td>
+<td><tt class="docutils literal"><span class="pre">color:</span> <span class="pre">rgb(10%,</span> <span class="pre">20%,</span> <span class="pre">30%)</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr><td>value sequences (separated by whitespace)</td>
+<td><tt class="docutils literal"><span class="pre">margin:</span> <span class="pre">2px</span> <span class="pre">0</span> <span class="pre">2px</span> <span class="pre">0</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr><td>value lists (separated by commas)</td>
+<td><tt class="docutils literal"><span class="pre">font-family:</span> <span class="pre">&quot;Times&quot;,</span> <span class="pre">serif</span></tt></td>
+<td>(2)</td>
+</tr>
+<tr><td>function calls</td>
+<td><tt class="docutils literal"><span class="pre">content:</span> <span class="pre">attr(id)</span></tt></td>
+<td>(3)</td>
+</tr>
+</tbody>
+</table>
+<p>Notes:</p>
+<ol class="arabic simple">
+<li>Color names are also valid identifiers.  CleverCSS recognizes the 140 common
+Netscape color names and treats them as values of type color, but does not
+convert them to RGB format until you do arithmetic with them.  That way, you
+can have barewords that are color names without a problem.</li>
+<li>This is only used in CSS for the <tt class="docutils literal"><span class="pre">font-family</span></tt> property, but you are free
+to use value lists anywhere and convert them to other values using their
+methods, see below.</li>
+<li>The functions recognized by CleverCSS, in addition to <tt class="docutils literal"><span class="pre">rgb</span></tt>, are <tt class="docutils literal"><span class="pre">attr</span></tt>,
+<tt class="docutils literal"><span class="pre">counter</span></tt> and <tt class="docutils literal"><span class="pre">url</span></tt>.</li>
+</ol>
+<p>CleverCSS extends CSS in that it allows writing not only these literal values,
+but also expressions involving these values.  These expressions can contain
+these elements, in addition to the literal expressions described above:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="48%" />
+<col width="45%" />
+<col width="7%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Type</th>
+<th class="head">Example(s)</th>
+<th class="head">Note</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>Arithmetic on numbers and values;
+operators are <tt class="docutils literal"><span class="pre">+</span></tt>, <tt class="docutils literal"><span class="pre">-</span></tt>, <tt class="docutils literal"><span class="pre">*</span></tt>, <tt class="docutils literal"><span class="pre">/</span></tt>
+and <tt class="docutils literal"><span class="pre">%</span></tt> (modulo)</td>
+<td><tt class="docutils literal"><span class="pre">4</span> <span class="pre">%</span> <span class="pre">3</span> <span class="pre">=</span> <span class="pre">1</span></tt>, <tt class="docutils literal"><span class="pre">2px</span> <span class="pre">+</span> <span class="pre">4px</span> <span class="pre">=</span> <span class="pre">6px</span></tt>,
+<tt class="docutils literal"><span class="pre">2</span> <span class="pre">*</span> <span class="pre">2px</span> <span class="pre">=</span> <span class="pre">4px</span></tt></td>
+<td>(1)</td>
+</tr>
+<tr><td>Arithmetic on colors with <tt class="docutils literal"><span class="pre">+</span></tt> and <tt class="docutils literal"><span class="pre">-</span></tt></td>
+<td><tt class="docutils literal"><span class="pre">#f0f000</span> <span class="pre">+</span> <span class="pre">#000030</span> <span class="pre">=</span> <span class="pre">#f0f030</span></tt>,
+<tt class="docutils literal"><span class="pre">#808080</span> <span class="pre">+</span> <span class="pre">16</span> <span class="pre">=</span> <span class="pre">#909090</span></tt></td>
+<td>(2)</td>
+</tr>
+<tr><td>Concatenation of strings with <tt class="docutils literal"><span class="pre">+</span></tt></td>
+<td><tt class="docutils literal"><span class="pre">&quot;hello</span> <span class="pre">&quot;</span> <span class="pre">+</span> <span class="pre">&quot;world&quot;</span> <span class="pre">=</span> <span class="pre">&quot;hello</span> <span class="pre">world&quot;</span></tt></td>
+<td>(3)</td>
+</tr>
+<tr><td>String multiplication</td>
+<td><tt class="docutils literal"><span class="pre">&quot;a</span> <span class="pre">&quot;</span> <span class="pre">*</span> <span class="pre">3</span> <span class="pre">=</span> <span class="pre">&quot;a</span> <span class="pre">a</span> <span class="pre">a</span> <span class="pre">&quot;</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr><td>Expression grouping with parentheses</td>
+<td><tt class="docutils literal"><span class="pre">(2</span> <span class="pre">+</span> <span class="pre">3)</span> <span class="pre">*</span> <span class="pre">5px</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr><td>Method calls</td>
+<td><tt class="docutils literal"><span class="pre">#303030.brighten(40%)</span> <span class="pre">=</span> <span class="pre">#434343</span></tt>,
+<tt class="docutils literal"><span class="pre">&quot;hello&quot;.bare()</span> <span class="pre">=</span> <span class="pre">hello</span></tt></td>
+<td>(4)</td>
+</tr>
+<tr><td>Variable references</td>
+<td><tt class="docutils literal"><span class="pre">$foo</span> <span class="pre">=</span> <span class="pre">&lt;whatever</span> <span class="pre">foo</span> <span class="pre">was</span> <span class="pre">assigned&gt;</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+<p>More explanations:</p>
+<ol class="arabic">
+<li><p class="first">Arithmetic on numbers works as expected.</p>
+<p>You can mix one number and one value in arithmetic expressions, the result
+will automatically be given the unit of the value.  This is natural with
+multiplication and division but can feel weird with addition and subtraction.</p>
+<p>You can add and subtract two dimensions provided their units are the same or
+convertable to one another, but you cannot multiply or divide them.</p>
+</li>
+<li><p class="first">If two colors are added or subtracted, their individual channels will be
+added or subtracted.  If one operand is a number, it will be applied to all
+channels.</p>
+</li>
+<li><p class="first">Barewords cannot be added, but you can convert strings to barewords with the
+<tt class="docutils literal"><span class="pre">bare()</span></tt> method afterwards.</p>
+</li>
+<li><p class="first">For a list of available methods, see below.</p>
+</li>
+</ol>
+</div>
+<div class="section">
+<h2><a id="methods" name="methods">Methods</a></h2>
+<p>On values of all types:</p>
+<ul class="simple">
+<li><strong>string()</strong>: convert to a string.</li>
+</ul>
+<p>On strings:</p>
+<ul class="simple">
+<li><strong>bare()</strong>: convert the string to a bareword.  It is not checked that it has the
+required format!</li>
+<li><strong>length()</strong>: return the string's length.</li>
+<li><strong>upper()</strong>, <strong>lower()</strong>: convert the string to uppercase/lowercase.</li>
+<li><strong>strip()</strong>: return the string with all trailing and leading whitespace removed.</li>
+<li><strong>split(delim)</strong>: return a list with substrings, split at the string <em>delim</em>.</li>
+<li><strong>eval()</strong>: evaluate the contents as a CleverCSS expression and return the result.</li>
+</ul>
+<p>On numbers and dimensions:</p>
+<ul class="simple">
+<li><strong>round([places])</strong>: return the number or dimension rounded to <em>places</em> decimal
+places; <em>places</em> defaults to 0.</li>
+<li><strong>abs()</strong>: return the absolute value.</li>
+</ul>
+<p>On colors:</p>
+<ul class="simple">
+<li><strong>brighten([amount])</strong>: return the color brightened by the specified amount,
+which should be a percent dimension.  <em>amount</em> defaults to 10%.</li>
+<li><strong>darken([amount])</strong>: return the color darkened by the specified amount, which
+should be a percent dimension.  <em>amount</em> defaults to 10%.</li>
+</ul>
+<p>On lists and sequences:</p>
+<ul class="simple">
+<li><strong>length()</strong>: return the list or sequence's length.</li>
+<li><strong>join([delim])</strong>: return a string consisting the items converted to strings
+and joined by <em>delim</em>, which defaults to <tt class="docutils literal"><span class="pre">&quot;,</span> <span class="pre">&quot;</span></tt> for lists and <tt class="docutils literal"><span class="pre">&quot;</span> <span class="pre">&quot;</span></tt> for
+sequences.</li>
+<li><strong>list()</strong>: return the sequence as a list, or the list unchanged.</li>
+<li><strong>seq()</strong>: return the list as a sequence, or the sequence unchanged.</li>
+</ul>
+</div>
+<div class="section">
+<h2><a id="library-usage" name="library-usage">Library usage</a></h2>
+<p>Using the CleverCSS library is straightforward, just import Text.CSS.CleverCSS
+and use the <tt class="docutils literal"><span class="pre">cleverCSSConvert</span></tt> function, which is defined as</p>
+<pre class="literal-block">
+cleverCSSConvert :: SourceName -&gt; String -&gt; [(String, String)] -&gt; Either String String
+</pre>
+<p>The arguments are:</p>
+<ul class="simple">
+<li>name of input (normally file name, only used for error messages)</li>
+<li>input template</li>
+<li>initial variable assignments as <tt class="docutils literal"><span class="pre">(name,</span> <span class="pre">value)</span></tt> pairs; the value is evaluated
+as a CleverCSS expression when used</li>
+</ul>
+<p>The return value is either <tt class="docutils literal"><span class="pre">Left</span> <span class="pre">errormessage</span></tt> or <tt class="docutils literal"><span class="pre">Right</span> <span class="pre">stylesheet</span></tt>.</p>
+</div>
+<div class="section">
+<h2><a id="command-line-usage" name="command-line-usage">Command-line usage</a></h2>
+<p>CleverCSS also can be compiled as a standalone command-line program.  It can be
+called with no arguments, in which case it will convert standard input to
+standard output, or with file names as arguments, in which case it will convert
+the files named to CSS and store them in a file with the same name, but the
+extension replaced with <tt class="docutils literal"><span class="pre">.css</span></tt> (e.g., <tt class="docutils literal"><span class="pre">example.clevercss</span></tt> is converted to
+<tt class="docutils literal"><span class="pre">example.css</span></tt>).</p>
+<p>You can use the <tt class="docutils literal"><span class="pre">-D</span> <span class="pre">name=value</span></tt> command line option to assign initial
+variables.  The value is evaluated as a CleverCSS expression when used.</p>
+</div>
+<div class="section">
+<h2><a id="credits" name="credits">Credits</a></h2>
+<p>The Haskell CleverCSS library is written by Georg Brandl &lt;<a class="reference" href="mailto:georg&#64;python.org">georg&#64;python.org</a>&gt;.
+Bug reports and suggestions are welcome!</p>
+<p>The CleverCSS template language was initially devised and implemented in Python
+by Armin Ronacher, see &lt;<a class="reference" href="http://sandbox.pocoo.org/clevercss">http://sandbox.pocoo.org/clevercss</a>&gt;.</p>
+</div>
+</div>
+</div>
+</body>
+</html>

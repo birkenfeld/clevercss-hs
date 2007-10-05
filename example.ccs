@@ -1,0 +1,55 @@
+// This is an example CleverCSS template file.
+
+base_url = "http://www.example.com"
+base_padding = 20px
+background_color = #eee // this is a comment
+text_color = #111
+link_color = #ff0000
+
+@import url($base_url + "/styles.css");
+
+body:
+    font-family: 'Verdana', 'Times New Roman', serif
+    color: $text_color
+    padding->
+	top: $base_padding + 2
+	right: $base_padding + 3
+	left: $base_padding + 3
+	bottom: $base_padding + 2
+    margin: $supply_me_in_default_variables
+    background-color: $background_color
+
+div.foo:
+    width: "Hello World".length() * 20px
+    foo: (foo, bar, baz, 42).join('/')
+
+a, b:
+    color: $link_color
+    &:hover, &:link:
+	color: $link_color.darken(30%)
+    &:active:
+	color: $link_color.brighten(10%)
+
+base_padding = $base_padding + 4px;
+
+div.navigation:
+    height: 1.2em;
+    padding: 0.2cm + 1mm;
+    color: rgb(40, 50, 7 * 24) // this is a comment too
+    background-color: #606060.brighten(30%)
+    ul:
+	margin: 0
+	padding: $base_padding
+	list-style: none
+	li:
+	    float: left
+	    height: 1.2em
+	    a, strong, em:
+		display: block
+		height: 1em
+		padding: 0.1em
+    foo: (1 2 3).join("-").bare()
+
+__END__
+
+This is completely ignored by CleverCSS.
