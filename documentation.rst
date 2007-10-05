@@ -312,7 +312,7 @@ On lists and sequences:
 Library usage
 ~~~~~~~~~~~~~
 
-Using the CleverCSS library is straightforward, just import Text.CSS.CleverCSS
+Using the CleverCSS library is straightforward, just import ``Text.CSS.CleverCSS``
 and use the ``cleverCSSConvert`` function, which is defined as ::
 
   cleverCSSConvert :: SourceName -> String -> [(String, String)] -> Either String String
@@ -339,6 +339,21 @@ extension replaced with ``.css`` (e.g., ``example.clevercss`` is converted to
 
 You can use the ``-D name=value`` command line option to assign initial
 variables.  The value is evaluated as a CleverCSS expression when used.
+
+
+How to get and install it
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+CleverCSS can be downloaded from <http://hackage.haskell.org> or checked out
+from Mercurial at <http://dev.pocoo.org/hg/clevercss-hs-main>.  It is a standard
+Cabalized package, so the usual ::
+
+   runhaskell Setup.lhs configure
+   runhaskell Setup.lhs build
+   sudo runhaskell Setup.lhs install
+
+should be enough to get the ``clevercss`` binary and the ``Text.CSS.CleverCSS``
+library installed.
 
 
 Credits

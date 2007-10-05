@@ -398,7 +398,7 @@ sequences.</li>
 </div>
 <div class="section">
 <h2><a id="library-usage" name="library-usage">Library usage</a></h2>
-<p>Using the CleverCSS library is straightforward, just import Text.CSS.CleverCSS
+<p>Using the CleverCSS library is straightforward, just import <tt class="docutils literal"><span class="pre">Text.CSS.CleverCSS</span></tt>
 and use the <tt class="docutils literal"><span class="pre">cleverCSSConvert</span></tt> function, which is defined as</p>
 <pre class="literal-block">
 cleverCSSConvert :: SourceName -&gt; String -&gt; [(String, String)] -&gt; Either String String
@@ -422,6 +422,19 @@ extension replaced with <tt class="docutils literal"><span class="pre">.css</spa
 <tt class="docutils literal"><span class="pre">example.css</span></tt>).</p>
 <p>You can use the <tt class="docutils literal"><span class="pre">-D</span> <span class="pre">name=value</span></tt> command line option to assign initial
 variables.  The value is evaluated as a CleverCSS expression when used.</p>
+</div>
+<div class="section">
+<h2><a id="how-to-get-and-install-it" name="how-to-get-and-install-it">How to get and install it</a></h2>
+<p>CleverCSS can be downloaded from &lt;<a class="reference" href="http://hackage.haskell.org">http://hackage.haskell.org</a>&gt; or checked out
+from Mercurial at &lt;<a class="reference" href="http://dev.pocoo.org/hg/clevercss-hs-main">http://dev.pocoo.org/hg/clevercss-hs-main</a>&gt;.  It is a standard
+Cabalized package, so the usual</p>
+<pre class="literal-block">
+runhaskell Setup.lhs configure
+runhaskell Setup.lhs build
+sudo runhaskell Setup.lhs install
+</pre>
+<p>should be enough to get the <tt class="docutils literal"><span class="pre">clevercss</span></tt> binary and the <tt class="docutils literal"><span class="pre">Text.CSS.CleverCSS</span></tt>
+library installed.</p>
 </div>
 <div class="section">
 <h2><a id="credits" name="credits">Credits</a></h2>
