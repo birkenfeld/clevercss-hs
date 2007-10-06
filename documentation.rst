@@ -1,6 +1,6 @@
-=======================
-CleverCSS Documentation
-=======================
+=================================
+CleverCSS (Haskell) Documentation
+=================================
 
 Introduction
 ------------
@@ -61,8 +61,8 @@ templates less pain:
   after that line is completely ignored by CleverCSS.
 
 
-Semantics
----------
+Constructs
+----------
 
 Variable assignments
 ~~~~~~~~~~~~~~~~~~~~
@@ -172,7 +172,7 @@ before it with each of the property names in the block.
 
 
 Values and expressions
-~~~~~~~~~~~~~~~~~~~~~~
+----------------------
 
 CleverCSS property values are of multiple types which also exist in CSS:
 
@@ -310,7 +310,7 @@ On lists and sequences:
 
 
 Library usage
-~~~~~~~~~~~~~
+-------------
 
 Using the CleverCSS library is straightforward, just import ``Text.CSS.CleverCSS``
 and use the ``cleverCSSConvert`` function, which is defined as ::
@@ -328,7 +328,7 @@ The return value is either ``Left errormessage`` or ``Right stylesheet``.
 
 
 Command-line usage
-~~~~~~~~~~~~~~~~~~
+------------------
 
 CleverCSS also can be compiled as a standalone command-line program.  It can be
 called with no arguments, in which case it will convert standard input to
@@ -342,11 +342,12 @@ variables.  The value is evaluated as a CleverCSS expression when used.
 
 
 How to get and install it
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
-CleverCSS can be downloaded from <http://hackage.haskell.org> or checked out
-from Mercurial at <http://dev.pocoo.org/hg/clevercss-hs-main>.  It is a standard
-Cabalized package, so the usual ::
+CleverCSS can be downloaded from
+`Hackage <http://hackage.haskell.org/cgi-bin/hackage-scripts/package/clevercss>`_ 
+or checked out from Mercurial at <http://dev.pocoo.org/hg/clevercss-hs-main>.
+It is a cabalized package, so the usual ::
 
    runhaskell Setup.lhs configure
    runhaskell Setup.lhs build
@@ -356,8 +357,8 @@ should be enough to get the ``clevercss`` binary and the ``Text.CSS.CleverCSS``
 library installed.
 
 
-Credits
-~~~~~~~
+Authors
+-------
 
 The Haskell CleverCSS library is written by Georg Brandl <georg@python.org>.
 Bug reports and suggestions are welcome!
