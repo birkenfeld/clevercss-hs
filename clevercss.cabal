@@ -7,6 +7,7 @@ License: BSD3
 License-File: LICENSE
 Author: Georg Brandl
 Maintainer: georg@python.org
+Homepage: http://sandbox.pocoo.org/clevercss-hs/
 Stability: experimental
 Build-Depends: base, parsec, mtl, haskell98
 Extra-Source-Files: documentation.html, example.ccs
