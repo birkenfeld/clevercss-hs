@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="Docutils 0.4: http://docutils.sourceforge.net/" />
-<title>CleverCSS Documentation</title>
+<title>CleverCSS (Haskell) Documentation</title>
 <style type="text/css">
 
 body {
@@ -66,8 +66,8 @@ table {
 </style>
 </head>
 <body>
-<div class="document" id="clevercss-documentation">
-<h1 class="title">CleverCSS Documentation</h1>
+<div class="document" id="clevercss-haskell-documentation">
+<h1 class="title">CleverCSS (Haskell) Documentation</h1>
 <div class="section">
 <h1><a id="introduction" name="introduction">Introduction</a></h1>
 <p>CleverCSS is a system for writing templates that are translated into CSS,
@@ -120,7 +120,7 @@ after that line is completely ignored by CleverCSS.</li>
 </ul>
 </div>
 <div class="section">
-<h1><a id="semantics" name="semantics">Semantics</a></h1>
+<h1><a id="constructs" name="constructs">Constructs</a></h1>
 <div class="section">
 <h2><a id="variable-assignments" name="variable-assignments">Variable assignments</a></h2>
 <p>You can assign to variables with an equals sign.  Variable assignments are not
@@ -216,8 +216,9 @@ more shortening notation, best described by an example:</p>
 <p>The <tt class="docutils literal"><span class="pre">-&gt;</span></tt> symbol, followed by a block of properties, concatenates the name
 before it with each of the property names in the block.</p>
 </div>
+</div>
 <div class="section">
-<h2><a id="values-and-expressions" name="values-and-expressions">Values and expressions</a></h2>
+<h1><a id="values-and-expressions" name="values-and-expressions">Values and expressions</a></h1>
 <p>CleverCSS property values are of multiple types which also exist in CSS:</p>
 <table border="1" class="docutils">
 <colgroup>
@@ -356,7 +357,6 @@ channels.</p>
 <li><p class="first">For a list of available methods, see below.</p>
 </li>
 </ol>
-</div>
 <div class="section">
 <h2><a id="methods" name="methods">Methods</a></h2>
 <p>On values of all types:</p>
@@ -396,8 +396,9 @@ sequences.</li>
 <li><strong>seq()</strong>: return the list as a sequence, or the sequence unchanged.</li>
 </ul>
 </div>
+</div>
 <div class="section">
-<h2><a id="library-usage" name="library-usage">Library usage</a></h2>
+<h1><a id="library-usage" name="library-usage">Library usage</a></h1>
 <p>Using the CleverCSS library is straightforward, just import <tt class="docutils literal"><span class="pre">Text.CSS.CleverCSS</span></tt>
 and use the <tt class="docutils literal"><span class="pre">cleverCSSConvert</span></tt> function, which is defined as</p>
 <pre class="literal-block">
@@ -413,7 +414,7 @@ as a CleverCSS expression when used</li>
 <p>The return value is either <tt class="docutils literal"><span class="pre">Left</span> <span class="pre">errormessage</span></tt> or <tt class="docutils literal"><span class="pre">Right</span> <span class="pre">stylesheet</span></tt>.</p>
 </div>
 <div class="section">
-<h2><a id="command-line-usage" name="command-line-usage">Command-line usage</a></h2>
+<h1><a id="command-line-usage" name="command-line-usage">Command-line usage</a></h1>
 <p>CleverCSS also can be compiled as a standalone command-line program.  It can be
 called with no arguments, in which case it will convert standard input to
 standard output, or with file names as arguments, in which case it will convert
@@ -424,10 +425,11 @@ extension replaced with <tt class="docutils literal"><span class="pre">.css</spa
 variables.  The value is evaluated as a CleverCSS expression when used.</p>
 </div>
 <div class="section">
-<h2><a id="how-to-get-and-install-it" name="how-to-get-and-install-it">How to get and install it</a></h2>
-<p>CleverCSS can be downloaded from &lt;<a class="reference" href="http://hackage.haskell.org">http://hackage.haskell.org</a>&gt; or checked out
-from Mercurial at &lt;<a class="reference" href="http://dev.pocoo.org/hg/clevercss-hs-main">http://dev.pocoo.org/hg/clevercss-hs-main</a>&gt;.  It is a standard
-Cabalized package, so the usual</p>
+<h1><a id="how-to-get-and-install-it" name="how-to-get-and-install-it">How to get and install it</a></h1>
+<p>CleverCSS can be downloaded from
+<a class="reference" href="http://hackage.haskell.org/cgi-bin/hackage-scripts/package/clevercss">Hackage</a>
+or checked out from Mercurial at &lt;<a class="reference" href="http://dev.pocoo.org/hg/clevercss-hs-main">http://dev.pocoo.org/hg/clevercss-hs-main</a>&gt;.
+It is a cabalized package, so the usual</p>
 <pre class="literal-block">
 runhaskell Setup.lhs configure
 runhaskell Setup.lhs build
@@ -437,12 +439,11 @@ sudo runhaskell Setup.lhs install
 library installed.</p>
 </div>
 <div class="section">
-<h2><a id="credits" name="credits">Credits</a></h2>
+<h1><a id="authors" name="authors">Authors</a></h1>
 <p>The Haskell CleverCSS library is written by Georg Brandl &lt;<a class="reference" href="mailto:georg&#64;python.org">georg&#64;python.org</a>&gt;.
 Bug reports and suggestions are welcome!</p>
 <p>The CleverCSS template language was initially devised and implemented in Python
 by Armin Ronacher, see &lt;<a class="reference" href="http://sandbox.pocoo.org/clevercss">http://sandbox.pocoo.org/clevercss</a>&gt;.</p>
-</div>
 </div>
 </div>
 </body>
