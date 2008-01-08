@@ -8,7 +8,9 @@ test: all
 	./clevercss -D supply_me_in_default_variables="5px + 2px" example.ccs
 	cat example.css
 clean:
-	rm -fr clevercss dist *.o *.hi *.css
+	rm -fr clevercss dist *.css
+	find -name '*.o' -exec rm {} +
+	find -name '*.hi' -exec rm {} +
 	runhaskell Setup.lhs clean
 docs: all
 	./clevercss docstyle.ccs
