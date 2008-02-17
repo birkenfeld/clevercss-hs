@@ -11,22 +11,23 @@ Maintainer: georg@python.org
 Homepage: http://sandbox.pocoo.org/clevercss-hs/
 Stability: experimental
 Extra-Source-Files: documentation.html, example.ccs
+Build-Type: Simple
 
 Flag splitBase
   Description: Choose the new smaller, split-up base package.
 
 Library
   If flag(splitBase)
-    Build-Depends: base >= 3, containers, parsec, mtl, haskell98
+    Build-Depends: base >= 3, containers, parsec, mtl
   Else
-    Build-Depends: base < 3, containers, parsec, mtl, haskell98
+    Build-Depends: base < 3, parsec, mtl
   Exposed-Modules: Text.CSS.CleverCSS
   Other-Modules: Text.CSS.CleverCSSUtil
   Extensions: PatternGuards
-  GHC-Options: -O1 -funbox-strict-fields
+  GHC-Options: -funbox-strict-fields
 
 Executable clevercss
   Main-is: CCMain.hs
   Extensions: PatternGuards
-  GHC-Options: -O1 -funbox-strict-fields
+  GHC-Options: -funbox-strict-fields
 

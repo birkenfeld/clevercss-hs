@@ -8,7 +8,7 @@ module Main (main) where
 
 import Control.Monad (when)
 import Data.List (findIndices)
-import System
+import System.Environment
 import System.Console.GetOpt
 import System.IO
 
