@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------------------
--- CleverCSS in Haskell, (c) 2007 Georg Brandl. Licensed under the BSD license.
+-- CleverCSS in Haskell, (c) 2007, 2008 Georg Brandl. Licensed under the BSD license.
 --
--- CleverCSS module: main parsing and evaluation.
+-- Text.CSS.CleverCSS module: main parsing and evaluation.
 --
 -- TODO: properly parse selectors before splitting them
 ------------------------------------------------------------------------------------------ 

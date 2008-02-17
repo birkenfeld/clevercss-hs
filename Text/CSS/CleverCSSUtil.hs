@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------------------
--- CleverCSS in Haskell, (c) 2007 Georg Brandl. Licensed under the BSD license.
+-- CleverCSS in Haskell, (c) 2007, 2008 Georg Brandl. Licensed under the BSD license.
 --
--- CCUtil module: utilities.
+-- Text.CSS.CleverCSSUtil module: utilities.
 ------------------------------------------------------------------------------------------ 
 
 module Text.CSS.CleverCSSUtil (
@@ -286,7 +286,7 @@ rtrim = reverse . ltrim . reverse
 trim = ltrim . rtrim
 
 preprocess :: String -> String
-preprocess []        = ['\n']  -- be sure to have always a newline at the end
+preprocess []        = ['\n']  -- be sure to always have a newline at the end
 preprocess ('\t':xs) = ' ':' ':' ':' ':' ':' ':' ':' ' : preprocess xs
 preprocess ('\f':xs) = '\n' : preprocess xs
 preprocess ('\r':xs) = preprocess xs

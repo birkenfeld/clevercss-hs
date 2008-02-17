@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------------------
--- CleverCSS in Haskell, (c) 2007 Georg Brandl. Licensed under the BSD license.
+-- CleverCSS in Haskell, (c) 2007, 2008 Georg Brandl. Licensed under the BSD license.
 --
--- Main module: command-line interface.
+-- CCMain module: command-line interface.
 ------------------------------------------------------------------------------------------ 
 
 module Main (main) where
