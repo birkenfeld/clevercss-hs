@@ -1,3 +1,4 @@
+cabal-version: >=1.2
 Name: clevercss
 Version: 0.1
 Category: Text
@@ -9,13 +10,23 @@ Author: Georg Brandl
 Maintainer: georg@python.org
 Homepage: http://sandbox.pocoo.org/clevercss-hs/
 Stability: experimental
-Build-Depends: base, parsec, mtl, haskell98
 Extra-Source-Files: documentation.html, example.ccs
-Extensions: PatternGuards
-GHC-Options: -O1 -funbox-strict-fields
-Exposed-Modules: Text.CSS.CleverCSS
-Other-Modules: Text.CSS.CleverCSSUtil
 
-Executable: clevercss
-Main-is: CCMain.hs
+Flag splitBase
+  Description: Choose the new smaller, split-up base package.
+
+Library
+  If flag(splitBase)
+    Build-Depends: base >= 3, containers, parsec, mtl, haskell98
+  Else
+    Build-Depends: base < 3, containers, parsec, mtl, haskell98
+  Exposed-Modules: Text.CSS.CleverCSS
+  Other-Modules: Text.CSS.CleverCSSUtil
+  Extensions: PatternGuards
+  GHC-Options: -O1 -funbox-strict-fields
+
+Executable clevercss
+  Main-is: CCMain.hs
+  Extensions: PatternGuards
+  GHC-Options: -O1 -funbox-strict-fields
 
