@@ -4,11 +4,13 @@
 -- Text.CSS.CleverCSS module: main parsing and evaluation.
 --
 -- TODO: properly parse selectors before splitting them
------------------------------------------------------------------------------------------- 
-{-# LANGUAGE PatternGuards #-}
+------------------------------------------------------------------------------------------
+{-# LANGUAGE PatternGuards, FlexibleInstances #-}
 
 module Text.CSS.CleverCSS (cleverCSSConvert) where
 
+import Control.Applicative (Applicative(..), (<$>))
+import Control.Arrow ((***))
 import Control.Monad.Error
 import Control.Monad.RWS
 import Data.Char (toUpper, toLower)
@@ -16,6 +18,11 @@ import Data.List (findIndex)
 import Text.Printf (printf)
 import Text.ParserCombinators.Parsec hiding (newline)
 import qualified Data.Map as Map
+
+-- Applicative instance for Parsec parsers: not needed for parsec 3.0
+instance Applicative (GenParser a b) where
+  pure = return
+  (<*>) = ap
 
 import Text.CSS.CleverCSSUtil
 
@@ -30,30 +37,46 @@ data AssignType = Always | IfNotAssigned  deriving Eq
 
 data Topl = Assign !AssignType !Line !String [Expr]
           | Import !Line [Expr]
+          | Macro  !Line !String [Item]
           | Block  !Line ![String] [Item]
             deriving Eq
-data Item = Property !Line !String [Expr]
-          | SubBlock !Line ![String] [Item]
-          | SubGroup !Line !String [Item]
+data Item = Property !Line !String [Expr]      -- prop: val
+          | UseMacro !Line !String             -- %macro
+          | SubBlock !Line ![String] [Item]    -- sel:
+          | SubGroup !Line !String [Item]      -- prop->
             deriving Eq
-data Expr = Plus Expr Expr | Minus Expr Expr
-          | Mul Expr Expr | Divide Expr Expr | Modulo Expr Expr
-          | ExprListCons Expr Expr | ExprList [Expr] | Subseq [Expr]
-          | Call Expr !String (Maybe Expr)
-          | Var !String | Bare !String | String !String | CSSFunc !String Expr
-          | Number !Rational | Dim !CSSNumber | Color !CSSColor | Rgb Expr Expr Expr
-          | Error !String
+data Expr = Plus Expr Expr                     -- x + y
+          | Minus Expr Expr                    -- x - y
+          | Mul Expr Expr                      -- x * y
+          | Divide Expr Expr                   -- x / y
+          | Modulo Expr Expr                   -- x % y
+          | ExprListCons Expr Expr             -- x, xs
+          | ExprList [Expr]                    -- x, y, z
+          | Subseq [Expr]                      -- x y z
+          | Call Expr !String (Maybe Expr)     -- x.y([z])
+          | Var !String                        -- $x
+          | Bare !String                       -- x
+          | String !String                     -- "x"
+          | CSSFunc !String Expr               -- url(x)
+          | Number !Rational                   -- 42
+          | Dim !CSSNumber                     -- 42px
+          | Color !CSSColor                    -- #fff
+          | Rgb Expr Expr Expr                 -- rgb(1,0,0)
+          | Error !String                      -- evaluation error
             deriving Eq
 
 instance Show Topl where
   show (Assign Always _ name exprs) = name ++ " = " ++ joinShow " " exprs
   show (Assign IfNotAssigned _ name exprs) = name ++ " ?= " ++ joinShow " " exprs
   show (Import _ exprs) = "@import " ++ joinShow " " exprs
+  show (Macro _ sel items)  = "@define " ++ sel ++ ":\n" ++
+                              unlines (map ("  "++) (map show items))
   show (Block _ sels items) = (joinStr ", " sels) ++ ":\n" ++
-                            unlines (map ("  "++) (map show items))
+                              unlines (map ("  "++) (map show items))
 
 instance Show Item where
   show (Property _ name exprs) = name ++ ": " ++ joinShow " " exprs
+  show (UseMacro _ name)       = "%" ++ name
   show (SubGroup _ name items) = name ++ "->\n" ++
                                  unlines (map ("    "++) (map show items))
   show (SubBlock _ sels items) = (joinStr ", " sels) ++ ":\n" ++
@@ -81,7 +104,7 @@ instance Show Expr where
   show (CSSFunc name args) = name ++ "(" ++ show args ++ ")"
   show (Color (Left n))    = n
   show (Color (Right (r,g,b))) = case Map.lookup (r,g,b) reverse_colors of
-                                   Just name -> name 
+                                   Just name -> name
                                    Nothing -> printf "#%02x%02x%02x" r g b
   show (Bare s)            = s
 
@@ -102,37 +125,34 @@ ident        = (pws $ try $ (perhaps $ char '-') +++
                       ((char '_' <|> letter <|> escape) +:+
                        many (char '_' <|> char '-' <|> alphaNum <|> escape)))
                <?> "identifier"
-escape       = char '\\' >> (uniescape <|> charescape)
-uniescape    = (varCount 1 6 hexDigit ~>> perhaps (oneOf " \n"))
-               >>= (return . hexToString)
-charescape   = noneOf ("\n" ++ ['0'..'9'] ++ ['a'..'f'] ++ ['A'..'F'])
+escape       = char '\\' >> (uniescape <|> charescape) where
+  uniescape    = (varCount 1 6 hexDigit ~>> perhaps (oneOf " \n"))
+                 >>= (return . hexToString)
+  charescape   = noneOf ("\n" ++ ['0'..'9'] ++ ['a'..'f'] ++ ['A'..'F'])
 at_ident     = (char '@' >> ident) <?> "at-identifier"
 varname      = (char '_' <|> letter) +:+ many (char '_' <|> alphaNum)
 
 -- top-level parser
 parser :: GenParser Char [Int] [Topl]
-parser = many emptyLine >> many (import_ <|> assign <|> cassign <|> block) ~>> end
+parser = many emptyLine >> many (atclause <|> assign <|> cassign <|> block) ~>> end
   where
-    import_ = do
+    atclause = do
       atid <- at_ident
-      if atid == "import" then liftM2 Import getline exprseq_nl
-                          else unexpected "at-identifier, expecting @import"
-    assign  = liftM3 (Assign Always) getline varassign exprseq_nl
-    cassign = liftM3 (Assign IfNotAssigned) getline cvarassign exprseq_nl
-    block = do
-      line <- getline
-      selectornames <- selector False
-      firstitem <- subblock True <|> subgroup True <|> property True
-      restitems <- many $ (subblock False <|> subgroup False <|> property False)
-      updateState tail
-      return $! Block line selectornames (firstitem:restitems)
-    subblock fst = do
-      line <- getline
-      selectornames <- selector fst
-      firstitem <- subblock True <|> subgroup True <|> property True
-      restitems <- many $ (subblock False <|> subgroup False <|> property False)
-      updateState tail
-      return $! SubBlock line selectornames (firstitem:restitems)
+      if atid == "import"
+        then Import <$> getline <*> exprseq_nl
+        else if atid == "define"
+             then define
+             else unexpected "at-identifier, expecting @import or @define"
+    assign  = Assign Always <$> getline <*> varassign <*> exprseq_nl
+    cassign = Assign IfNotAssigned <$> getline <*> cvarassign <*> exprseq_nl
+    blockitems = do
+      firstitem <- subblock True <|> subgroup True <|> defsubst True <|> property True
+      restitems <- many $ (subblock False <|> subgroup False <|>
+                           defsubst False <|> property False)
+      return (firstitem:restitems)
+    define = Macro <$> getline <*> defname False <*> blockitems ~>> updateState tail
+    block = Block <$> getline <*> selector False <*> blockitems ~>> updateState tail
+    subblock fst = SubBlock <$> getline <*> selector fst <*> blockitems ~>> updateState tail
     subgroup fst = do
       line <- getline
       groupname <- grpname fst
@@ -140,13 +160,14 @@ parser = many emptyLine >> many (import_ <|> assign <|> cassign <|> block) ~>> e
       restitems <- many $ property False
       updateState tail
       return $! SubGroup line groupname (firstitem:restitems)
-    property fst = liftM3 Property getline (propname fst) exprseq_nl
+    defsubst fst = UseMacro <$> getline <*> macname fst
+    property fst = Property <$> getline <*> propname fst <*> exprseq_nl
     selector fst = do
       names <- selnames fst
       return $! map trim (split "," names) -- XXX: breaks with fancy selectors
 
     -- position helper
-    getline      = liftM sourceLine getPosition
+    getline      = sourceLine <$> getPosition
 
     -- toplevel variable assignment
     varassign    = (try $ varname ~>> (ws >> char '=' >> ws)) <?> "assignment"
@@ -156,6 +177,10 @@ parser = many emptyLine >> many (import_ <|> assign <|> cassign <|> block) ~>> e
     selnames fst = (try $ indented fst $ --string "def " >> ws >>
                         noneOf "\n" `manyTill` (try $ char ':' >> newline))
                    <?> "selectors"
+    defname fst  = (try $ indented fst $ ident ~>> (char ':' >> newline))
+                   <?> "macro name"
+    macname fst  = (try $ indented fst $ char '%' >> (ident ~>> newline))
+                   <?> "macro substitution"
     propname fst = (try $ indented fst $ ident ~>> char ':') <?> "property name"
     grpname  fst = (try $ indented fst $ grpident ~>> (string "->" >> newline))
                    <?> "group name"
@@ -179,38 +204,34 @@ parser = many emptyLine >> many (import_ <|> assign <|> cassign <|> block) ~>> e
                             else unexpected "indentation"
              else if ilen == olen then return tok else unexpected "indentation level"
 
--- expression parser
-exprseq_nl = exprseq ~>> (option ';' (char ';') >> newline)
+    exprseq_nl = exprseq ~>> (option ';' (char ';') >> newline)
 
+-- expression parser
 exprseq :: GenParser Char [Int] [Expr]
 exprseq = ws >> many1 expression
   where
     expression = plusExpr `chainr1` listOp
     listOp = op ',' >> return ExprListCons
-    plusOp = (op '+' >> return Plus) <|> (op '-' >> return Minus)
     plusExpr = mulExpr `chainl1` plusOp
+    plusOp = (op '+' >> return Plus) <|> (op '-' >> return Minus)
+    mulExpr = primary `chainl1` mulOp
     mulOp = (op '*' >> return Mul) <|> (op '/' >> return Divide) <|>
             (op '%' >> return Modulo)
-    mulExpr = primary `chainl1` mulOp
     primary = do
       object <- parenthesized <|> str <|> dimension <|> number <|> color <|>
                 func <|> rgb <|> var <|> bare
       calltails object
-    parenthesized = liftM Subseq $ between (op '(') (op ')') (many1 expression)
-    str = liftM String $ (sqstring <|> dqstring)
-    number = liftM (Number . readNum) num
-    dimension = liftM (Dim . readDim) dim
-    color = liftM (Color . Right . hexToColor) hexcolor
-    var = liftM Var varref
+    parenthesized = Subseq <$> between (op '(') (op ')') (many1 expression)
+    str = String <$> (sqstring <|> dqstring)
+    number = (Number . readNum) <$> num
+    dimension = (Dim . readDim) <$> dim
+    color = (Color . Right . hexToColor) <$> hexcolor
+    var = Var <$> varref
     bare = do
       name <- ident
       if Map.member name colors then return $ Color (Left name)
                                 else return $ Bare name
-    func = do
-      funcname <- choice (map funcall css_functions)
-      args <- expression
-      op ')'
-      return $! CSSFunc funcname args
+    func = CSSFunc <$> choice (map funcall css_functions) <*> expression ~>> op ')'
     rgb = do
       funcall "rgb"
       channels <- expression -- r, g, b
@@ -227,7 +248,7 @@ exprseq = ws >> many1 expression
         Just called -> calltails called
     call object = do
       methname <- methcall
-      callexpr <- option Nothing (liftM Just expression)
+      callexpr <- option Nothing (Just <$> expression)
       op ')'
       return $! Just (Call object methname callexpr)
 
@@ -254,7 +275,8 @@ exprseq = ws >> many1 expression
 -- the evaluator
 
 data EvalError = EvalErr !Line !String  -- line, message
-type EvalMonad = RWST (Map.Map String Expr) () [Topl] (Either EvalError) ()
+type Dict cont = Map.Map String cont
+type EvalMonad = RWST (Dict Expr, Dict (Line, [Item])) () [Topl] (Either EvalError) ()
 
 instance Error EvalError where
   strMsg s = EvalErr 0 s
@@ -265,10 +287,11 @@ instance Show EvalError where
 
 translate :: [Topl] -> [(String, String)] -> Either EvalError [Topl]
 translate toplevels initial_map =
-  fmap fst $ execRWST (resolve_toplevels toplevels) (eval_map Map.empty initial_map) []
+  fmap fst $ execRWST (resolve_toplevels toplevels)
+                      (eval_map Map.empty initial_map, Map.empty) []
   where
   -- evaluate items in the initial map
-  eval_map :: Map.Map String Expr -> [(String, String)] -> Map.Map String Expr
+  eval_map :: Dict Expr -> [(String, String)] -> Dict Expr
   eval_map map [] = map
   eval_map map ((n,v):ds) = eval_map (Map.insert n
                                            (evaluate map "initial variables" v) map) ds
@@ -279,6 +302,8 @@ translate toplevels initial_map =
   resolve_toplevels (Block line sels items : ts) = do
     resolve_block line sels items
     resolve_toplevels ts
+  resolve_toplevels (Macro line sel items : ts) = do
+    local (id *** Map.insert sel (line, items)) (resolve_toplevels ts)
   resolve_toplevels (Import line exprseq : ts) = do
     exprs <- eval_exprseq exprseq
     case exprs of
@@ -287,14 +312,14 @@ translate toplevels initial_map =
            "invalid thing to import, should be url(): " ++ show v
     resolve_toplevels ts
   resolve_toplevels (Assign how line name exprseq : ts) = do
-    ispresent <- asks (Map.member name)
+    ispresent <- asks (Map.member name . fst)
     if ispresent && how == IfNotAssigned then resolve_toplevels ts else do
       exprs <- eval_exprseq exprseq
       case exprs of
         Error err -> throwError $ EvalErr line err
-        _         -> local (Map.insert name exprs) (resolve_toplevels ts)
+        _         -> local (Map.insert name exprs *** id) (resolve_toplevels ts)
   resolve_toplevels [] = return ()
-    
+
   resolve_block line sels items = do
     props <- mapM (resolve_item sels) items
     modify (Block line sels (concat props) : )
@@ -304,6 +329,11 @@ translate toplevels initial_map =
     case exprs of
       Error err -> throwError $ EvalErr line err
       _         -> return [Property line name [exprs]]
+  resolve_item sels (UseMacro _ name) = do
+    defmap <- asks snd
+    case Map.lookup name defmap of
+      Nothing -> error $ "macro " ++ name ++ " is not defined"
+      Just (_, items) -> fmap concat $ mapM (resolve_item sels) items
   resolve_item sels (SubBlock line subsels items) =
     resolve_block line (combine_sels sels subsels) items >> return []
   resolve_item _ (SubGroup _ name items) = mapM (resolve_group name) items
@@ -318,16 +348,16 @@ translate toplevels initial_map =
                        (findIndex (=='&') s2)
 
   eval_exprseq []  = return $ String ""
-  eval_exprseq [e] = asks id >>= return . (flip eval e)
+  eval_exprseq [e] = asks fst >>= return . (flip eval e)
   eval_exprseq seq = do
-    varmap <- asks id
+    varmap <- asks fst
     return $ findError (Bare . joinShow " ") $ map (eval varmap) seq
 
   -- evaluate an Expr
   eval varmap exp = let eval' = eval varmap in case exp of
     Var a -> case Map.lookup a varmap of
       Just val -> val
-      Nothing -> Error $ "variable " ++ a ++ " is not defined" 
+      Nothing  -> Error $ "variable " ++ a ++ " is not defined"
     Plus a b -> case (eval' a, eval' b) of
       (String s, String t) -> String (s ++ t)
       (Number n, Number m) -> Number (n + m)
@@ -439,7 +469,7 @@ translate toplevels initial_map =
 
   -- evaluate a string
   evaluate varmap source string = case runParser exprseq [] "" string of
-    Left err  -> Error $ showWithoutPos ("in "++source++":") err
+    Left err  -> Error $ showWithoutPos ("in " ++ source ++ ":") err
     Right []  -> String ""
     Right [e] -> eval varmap e
     Right seq -> findError Subseq $ map (eval varmap) seq
@@ -463,10 +493,11 @@ format blocks = concatMap format_block blocks where
   format_block (Block _ sels props) =
     joinStr ", " sels ++ " {\n" ++ unlines (map format_prop props) ++ "}\n\n"
   format_block (Import _ exprs) = "@import " ++ joinShow " " exprs ++ ";\n"
+  format_block (Macro _ _ _) = error "remaining definition in eval result"
   format_block (Assign _ _ _ _) = error "remaining assignment in eval result"
   format_prop (Property _ name [val]) = "    " ++ name ++  ": " ++ show val ++ ";"
-  format_prop (Property _ _ _) = error "property has not exactly one value" 
-  format_prop _ = error "remaining subitems in block" 
+  format_prop (Property _ _ _) = error "property has not exactly one value"
+  format_prop _ = error "remaining subitems in block"
 
 cleverCSSConvert :: SourceName -> String -> [(String, String)] -> Either String String
 cleverCSSConvert name input initial_map =
