@@ -8,7 +8,13 @@ link_color = #ff0000
 
 @import url($base_url + "/styles.css");
 
+@define mixin:
+    color: maroon
+    li:
+    	display: inline
+
 body:
+    %mixin
     font-family: 'Verdana', 'Times New Roman', serif
     color: $text_color
     padding->
