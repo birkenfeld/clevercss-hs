@@ -354,8 +354,8 @@ translate toplevels initial_map =
                              ": given " ++ show given ++ ", should be " ++ show numargs)
           else do
             evaledargs <- evalExprseq line id args
-            let updfunc old = (foldl (flip $ uncurry Map.insert)
-                               (fst old) (zip argnames evaledargs), snd old)
+            -- update locals with evaluated arguments
+            let updfunc = (Map.union (Map.fromList $ zip argnames evaledargs) *** id)
             local updfunc (concat <$> mapM (resolveItem sels) items)
   resolveItem sels (SubBlock line subsels items) =
     resolveBlock line (combineSels sels subsels) items >> return []
