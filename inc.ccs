@@ -1,0 +1,4 @@
+li:
+    font: $font
+
+text_color = #222

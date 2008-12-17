@@ -2,7 +2,7 @@
 -- CleverCSS in Haskell, (c) 2007, 2008 Georg Brandl. Licensed under the BSD license.
 --
 -- CCMain module: command-line interface.
------------------------------------------------------------------------------------------- 
+------------------------------------------------------------------------------------------
 
 module Main (main) where
 
@@ -58,7 +58,8 @@ main = do
                     "Converted file " ++ filename ++ " to " ++ outfilename ++ ".\n"
     process inaction filename outfile defs = do
          input <- inaction
-         case cleverCSSConvert filename input defs of
+         result <- cleverCSSConvert filename input defs
+         case result of
            Left err  -> do
              hPutStr stderr $ "While processing " ++ filename ++ ":\n" ++ err ++ "\n"
              return False
