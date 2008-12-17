@@ -35,35 +35,35 @@ type CSSNumber = (Rational, String)  -- number, unit
 type CSSColor = Either String Color  -- color name or RGB
 data AssignType = Always | IfNotAssigned  deriving Eq
 
-data Topl = Assign !AssignType !Line !String [Expr]
-          | Import !Line [Expr]
-          | Macro  !Line !String ![String] [Item]
-          | Block  !Line ![String] [Item]
+data Topl = Assign !AssignType !Line !String [Expr]  -- a [?]= b
+          | Import !Line [Expr]                      -- @import url(...)
+          | Macro  !Line !String ![String] [Item]    -- @define mac(...):
+          | Block  !Line ![String] [Item]            -- sel:
             deriving Eq
-data Item = Property !Line !String [Expr]      -- prop: val
-          | UseMacro !Line !String [Expr]      -- %macro(...)
-          | SubBlock !Line ![String] [Item]    -- sel:
-          | SubGroup !Line !String [Item]      -- prop->
+data Item = Property !Line !String [Expr]            -- prop: val
+          | UseMacro !Line !String [Expr]            -- %macro(...)
+          | SubBlock !Line ![String] [Item]          -- subsel:
+          | SubGroup !Line !String [Item]            -- prop->
             deriving Eq
-data Expr = Plus Expr Expr                     -- x + y
-          | Minus Expr Expr                    -- x - y
-          | Mul Expr Expr                      -- x * y
-          | Divide Expr Expr                   -- x / y
-          | Modulo Expr Expr                   -- x % y
-          | ExprListCons Expr Expr             -- x, xs
-          | ExprList [Expr]                    -- x, y, z
-          | Subseq [Expr]                      -- x y z
-          | Call Expr !String (Maybe Expr)     -- x.y([z])
-          | Var !String                        -- $x
-          | Bare !String                       -- x
-          | String !String                     -- "x"
-          | CSSFunc !String Expr               -- url(x)
-          | Number !Rational                   -- 42
-          | Dim !CSSNumber                     -- 42px
-          | Color !CSSColor                    -- #fff
-          | Rgb Expr Expr Expr                 -- rgb(1,0,0)
-          | Error !String                      -- evaluation error
-          | NoExpr                             -- special case in macro calls
+data Expr = Plus Expr Expr                           -- x + y
+          | Minus Expr Expr                          -- x - y
+          | Mul Expr Expr                            -- x * y
+          | Divide Expr Expr                         -- x / y
+          | Modulo Expr Expr                         -- x % y
+          | ExprListCons Expr Expr                   -- x, xs
+          | ExprList [Expr]                          -- x, y, z
+          | Subseq [Expr]                            -- x y z
+          | Call Expr !String (Maybe Expr)           -- x.y([z])
+          | Var !String                              -- $x
+          | Bare !String                             -- x
+          | String !String                           -- "x"
+          | CSSFunc !String Expr                     -- url(x)
+          | Number !Rational                         -- 42
+          | Dim !CSSNumber                           -- 42px
+          | Color !CSSColor                          -- #fff
+          | Rgb Expr Expr Expr                       -- rgb(1,0,0)
+          | Error !String                            -- evaluation error
+          | NoExpr                                   -- no arg in macro calls
             deriving Eq
 
 instance Show Topl where
@@ -140,24 +140,20 @@ parser = many emptyLine >> many (atclause <|> assign <|> cassign <|> block) ~>> 
   where
     atclause = do
       atid <- at_ident
-      if atid == "import"
-        then Import <$> getline <*> exprseq_nl
-        else if atid == "define"
-             then define
-             else unexpected "at-identifier, expecting @import or @define"
+      case atid of
+        "import" -> Import <$> getline <*> exprseq_nl
+        "define" -> Macro <$> getline <*> defname <*> defargs <*> blockitems
+        _        -> unexpected "at-identifier, expecting @import or @define"
     assign  = Assign Always <$> getline <*> varassign <*> exprseq_nl
     cassign = Assign IfNotAssigned <$> getline <*> cvarassign <*> exprseq_nl
     blockitems = do
       firstitem <- subblock True <|> subgroup True <|> defsubst True <|> property True
       restitems <- many $ (subblock False <|> subgroup False <|>
                            defsubst False <|> property False)
+      updateState tail  -- remove indentation level from stack
       return (firstitem:restitems)
-    define = Macro <$> getline <*> defname <*> defargs
-                   <*> blockitems ~>> updateState tail
-    block = Block <$> getline <*> selector False
-                  <*> blockitems ~>> updateState tail
-    subblock fst = SubBlock <$> getline <*> selector fst
-                            <*> blockitems ~>> updateState tail
+    block = Block <$> getline <*> selector False <*> blockitems
+    subblock fst = SubBlock <$> getline <*> selector fst <*> blockitems
     subgroup fst = do
       line <- getline
       groupname <- grpname fst
@@ -165,11 +161,7 @@ parser = many emptyLine >> many (atclause <|> assign <|> cassign <|> block) ~>> 
       restitems <- many $ property False
       updateState tail
       return $! SubGroup line groupname (firstitem:restitems)
-    defsubst fst = do
-      line <- getline
-      macro <- macname fst
-      args <- macargs
-      return $! UseMacro line macro (exprs2list args)
+    defsubst fst = UseMacro <$> getline <*> macname fst <*> (exprs2list <$> macargs)
     property fst = Property <$> getline <*> propname fst <*> exprseq_nl
     selector fst = do
       names <- selnames fst
@@ -178,7 +170,7 @@ parser = many emptyLine >> many (atclause <|> assign <|> cassign <|> block) ~>> 
     -- position helper
     getline      = sourceLine <$> getPosition
 
-    -- exprlist helper
+    -- exprlist helper for macro arguments
     exprs2list (ExprListCons a b) = a : exprs2list b
     exprs2list c                  = [c]
 
@@ -225,6 +217,7 @@ parser = many emptyLine >> many (atclause <|> assign <|> cassign <|> block) ~>> 
 -- expression parser
 exprseq :: GenParser Char [Int] [Expr]
 exprseq = ws >> many1 expression
+expression :: GenParser Char [Int] Expr
 expression = plusExpr `chainr1` listOp
   where
     listOp = op ',' >> return ExprListCons
