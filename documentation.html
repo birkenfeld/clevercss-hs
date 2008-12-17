@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<meta name="generator" content="Docutils 0.4: http://docutils.sourceforge.net/" />
+<meta name="generator" content="Docutils 0.5: http://docutils.sourceforge.net/" />
 <title>CleverCSS (Haskell) Documentation</title>
 <style type="text/css">
 
@@ -68,8 +68,9 @@ table {
 <body>
 <div class="document" id="clevercss-haskell-documentation">
 <h1 class="title">CleverCSS (Haskell) Documentation</h1>
-<div class="section">
-<h1><a id="introduction" name="introduction">Introduction</a></h1>
+
+<div class="section" id="introduction">
+<h1>Introduction</h1>
 <p>CleverCSS is a system for writing templates that are translated into CSS,
 allowing to build style sheets in a clean and structured way, following the DRY
 (don't repeat yourself) principle.</p>
@@ -106,8 +107,8 @@ variable assignment.</p>
 <p>Other than that, CleverCSS allows expressions involving CSS values as well as
 grouping of similar property names, as shown below.</p>
 </div>
-<div class="section">
-<h1><a id="syntax" name="syntax">Syntax</a></h1>
+<div class="section" id="syntax">
+<h1>Syntax</h1>
 <p>As you have already seen, you use indentation and colons to express grouping.
 There are also other small syntactic differences to CSS that make writing
 templates less pain:</p>
@@ -119,10 +120,10 @@ comments.</li>
 after that line is completely ignored by CleverCSS.</li>
 </ul>
 </div>
-<div class="section">
-<h1><a id="constructs" name="constructs">Constructs</a></h1>
-<div class="section">
-<h2><a id="variable-assignments" name="variable-assignments">Variable assignments</a></h2>
+<div class="section" id="constructs">
+<h1>Constructs</h1>
+<div class="section" id="variable-assignments">
+<h2>Variable assignments</h2>
 <p>You can assign to variables with an equals sign.  Variable assignments are not
 allowed inside blocks, only at the toplevel.  Variables can be assigned to
 multiple times.</p>
@@ -148,8 +149,8 @@ bar ?= 2px
 <p><tt class="docutils literal"><span class="pre">$foo</span></tt> would be replaced by <tt class="docutils literal"><span class="pre">2px</span></tt>, while <tt class="docutils literal"><span class="pre">$bar</span></tt> would be replaced by
 <tt class="docutils literal"><span class="pre">1px</span></tt>.</p>
 </div>
-<div class="section">
-<h2><a id="selectors" name="selectors">Selectors</a></h2>
+<div class="section" id="selectors">
+<h2>Selectors</h2>
 <p>CleverCSS does not process selectors in a special way, but as shown above you
 can nest selector blocks instead of repeating parent selectors in individual
 blocks:</p>
@@ -188,14 +189,14 @@ a strong, #strong, a em, #em { bar }
 <p>Using this technique, you can construct selectors quite freely.  Multiple
 occurrences of the ampersand are replaced.</p>
 </div>
-<div class="section">
-<h2><a id="properties" name="properties">Properties</a></h2>
+<div class="section" id="properties">
+<h2>Properties</h2>
 <p>Property specifications work like in CSS: just put a colon after the property
 name.  You can use expressions or variable references (see below) only in
 property values, not in property names.</p>
 </div>
-<div class="section">
-<h2><a id="property-groups" name="property-groups">Property groups</a></h2>
+<div class="section" id="property-groups">
+<h2>Property groups</h2>
 <p>Since CSS has many property names with common prefixes, CleverCSS includes one
 more shortening notation, best described by an example:</p>
 <pre class="literal-block">
@@ -216,9 +217,33 @@ more shortening notation, best described by an example:</p>
 <p>The <tt class="docutils literal"><span class="pre">-&gt;</span></tt> symbol, followed by a block of properties, concatenates the name
 before it with each of the property names in the block.</p>
 </div>
+<div class="section" id="macros">
+<h2>Macros</h2>
+<p>Macros can help you writing often used groups of properties and sub-blocks only
+once.  Define macros like this:</p>
+<pre class="literal-block">
+&#64;define mymacro(arg1, arg2):
+    font-family: $arg1
+    p:
+        display: inline
+        color: $arg2
+</pre>
+<p>Macros can have zero or more arguments.  Inside a macro definition, the
+arguments are accessible like normal variables.  Macros must be defined at
+top-level, and their names live in a different namespace than variables.</p>
+<p>Use (&quot;substitute&quot;) them like this:</p>
+<pre class="literal-block">
+body:
+    %mymacro(&quot;Verdana&quot;, blue)
+    font-size: 1.1em
+</pre>
+<p>Macro substitutions are handled as if the macro's contents are placed at the
+exact location of the substitution, with the argument variables replaced by the
+given expressions.</p>
 </div>
-<div class="section">
-<h1><a id="values-and-expressions" name="values-and-expressions">Values and expressions</a></h1>
+</div>
+<div class="section" id="values-and-expressions">
+<h1>Values and expressions</h1>
 <p>CleverCSS property values are of multiple types which also exist in CSS:</p>
 <table border="1" class="docutils">
 <colgroup>
@@ -357,8 +382,8 @@ channels.</p>
 <li><p class="first">For a list of available methods, see below.</p>
 </li>
 </ol>
-<div class="section">
-<h2><a id="methods" name="methods">Methods</a></h2>
+<div class="section" id="methods">
+<h2>Methods</h2>
 <p>On values of all types:</p>
 <ul class="simple">
 <li><strong>string()</strong>: convert to a string.</li>
@@ -397,8 +422,8 @@ sequences.</li>
 </ul>
 </div>
 </div>
-<div class="section">
-<h1><a id="library-usage" name="library-usage">Library usage</a></h1>
+<div class="section" id="library-usage">
+<h1>Library usage</h1>
 <p>Using the CleverCSS library is straightforward, just import <tt class="docutils literal"><span class="pre">Text.CSS.CleverCSS</span></tt>
 and use the <tt class="docutils literal"><span class="pre">cleverCSSConvert</span></tt> function, which is defined as</p>
 <pre class="literal-block">
@@ -413,8 +438,8 @@ as a CleverCSS expression when used</li>
 </ul>
 <p>The return value is either <tt class="docutils literal"><span class="pre">Left</span> <span class="pre">errormessage</span></tt> or <tt class="docutils literal"><span class="pre">Right</span> <span class="pre">stylesheet</span></tt>.</p>
 </div>
-<div class="section">
-<h1><a id="command-line-usage" name="command-line-usage">Command-line usage</a></h1>
+<div class="section" id="command-line-usage">
+<h1>Command-line usage</h1>
 <p>CleverCSS also can be compiled as a standalone command-line program.  It can be
 called with no arguments, in which case it will convert standard input to
 standard output, or with file names as arguments, in which case it will convert
@@ -424,11 +449,11 @@ extension replaced with <tt class="docutils literal"><span class="pre">.css</spa
 <p>You can use the <tt class="docutils literal"><span class="pre">-D</span> <span class="pre">name=value</span></tt> command line option to assign initial
 variables.  The value is evaluated as a CleverCSS expression when used.</p>
 </div>
-<div class="section">
-<h1><a id="how-to-get-and-install-it" name="how-to-get-and-install-it">How to get and install it</a></h1>
+<div class="section" id="how-to-get-and-install-it">
+<h1>How to get and install it</h1>
 <p>CleverCSS can be downloaded from
-<a class="reference" href="http://hackage.haskell.org/cgi-bin/hackage-scripts/package/clevercss">Hackage</a>
-or checked out from Mercurial at &lt;<a class="reference" href="http://dev.pocoo.org/hg/clevercss-hs-main">http://dev.pocoo.org/hg/clevercss-hs-main</a>&gt;.
+<a class="reference external" href="http://hackage.haskell.org/cgi-bin/hackage-scripts/package/clevercss">Hackage</a>
+or checked out from Mercurial at &lt;<a class="reference external" href="http://dev.pocoo.org/hg/clevercss-hs-main">http://dev.pocoo.org/hg/clevercss-hs-main</a>&gt;.
 It is a cabalized package, so the usual</p>
 <pre class="literal-block">
 runhaskell Setup.lhs configure
@@ -438,12 +463,12 @@ sudo runhaskell Setup.lhs install
 <p>should be enough to get the <tt class="docutils literal"><span class="pre">clevercss</span></tt> binary and the <tt class="docutils literal"><span class="pre">Text.CSS.CleverCSS</span></tt>
 library installed.</p>
 </div>
-<div class="section">
-<h1><a id="authors" name="authors">Authors</a></h1>
-<p>The Haskell CleverCSS library is written by Georg Brandl &lt;<a class="reference" href="mailto:georg&#64;python.org">georg&#64;python.org</a>&gt;.
+<div class="section" id="authors">
+<h1>Authors</h1>
+<p>The Haskell CleverCSS library is written by Georg Brandl &lt;<a class="reference external" href="mailto:georg&#64;python.org">georg&#64;python.org</a>&gt;.
 Bug reports and suggestions are welcome!</p>
 <p>The CleverCSS template language was initially devised and implemented in Python
-by Armin Ronacher, see &lt;<a class="reference" href="http://sandbox.pocoo.org/clevercss">http://sandbox.pocoo.org/clevercss</a>&gt;.</p>
+by Armin Ronacher, see &lt;<a class="reference external" href="http://sandbox.pocoo.org/clevercss">http://sandbox.pocoo.org/clevercss</a>&gt;.</p>
 </div>
 </div>
 </body>
