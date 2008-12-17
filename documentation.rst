@@ -171,6 +171,33 @@ The ``->`` symbol, followed by a block of properties, concatenates the name
 before it with each of the property names in the block.
 
 
+Macros
+~~~~~~
+
+Macros can help you writing often used groups of properties and sub-blocks only
+once.  Define macros like this::
+
+   @define mymacro(arg1, arg2):
+       font-family: $arg1
+       p:
+           display: inline
+           color: $arg2
+
+Macros can have zero or more arguments.  Inside a macro definition, the
+arguments are accessible like normal variables.  Macros must be defined at
+top-level, and their names live in a different namespace than variables.
+           
+Use ("substitute") them like this::
+
+   body:
+       %mymacro("Verdana", blue)
+       font-size: 1.1em
+
+Macro substitutions are handled as if the macro's contents are placed at the
+exact location of the substitution, with the argument variables replaced by the
+given expressions.
+       
+
 Values and expressions
 ----------------------
 
