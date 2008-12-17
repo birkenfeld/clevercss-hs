@@ -8,13 +8,16 @@ link_color = #ff0000
 
 @import url($base_url + "/styles.css");
 
-@define mixin:
-    color: maroon
+@define disp(a):
+    display: $a
+
+@define macro(a, b):
+    color: $a
     li:
-    	display: inline
+        %disp($b)
 
 body:
-    %mixin
+    %macro(rgb(0, 0, 10), inline)
     font-family: 'Verdana', 'Times New Roman', serif
     color: $text_color
     padding->
