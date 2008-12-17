@@ -37,8 +37,10 @@ data AssignType = Always | IfNotAssigned  deriving Eq
 
 data Topl = Assign !AssignType !Line !String [Expr]  -- a [?]= b
           | Import !Line [Expr]                      -- @import url(...)
+          | Include !Line [Expr]                     -- @include "..."
           | Macro  !Line !String ![String] [Item]    -- @define mac(...):
           | Block  !Line ![String] [Item]            -- sel:
+          | SetFilename !String                      -- pseudo item
             deriving Eq
 data Item = Property !Line !String [Expr]            -- prop: val
           | UseMacro !Line !String [Expr]            -- %macro(...)
@@ -70,10 +72,12 @@ instance Show Topl where
   show (Assign Always _ name exprs) = name ++ " = " ++ joinShow " " exprs
   show (Assign IfNotAssigned _ name exprs) = name ++ " ?= " ++ joinShow " " exprs
   show (Import _ exprs) = "@import " ++ joinShow " " exprs
+  show (Include _ exprs) = "@include " ++ joinShow " " exprs
   show (Macro _ sel argnames items) = "@define " ++ sel ++ "(" ++ joinStr ", " argnames ++
                                   "):\n" ++ unlines (map ("  "++) (map show items))
   show (Block _ sels items) = (joinStr ", " sels) ++ ":\n" ++
                               unlines (map ("  "++) (map show items))
+  show (SetFilename s) = "<SetFilename " ++ s ++ ">"
 
 instance Show Item where
   show (Property _ name exprs) = name ++ ": " ++ joinShow " " exprs
@@ -142,8 +146,9 @@ parser = many emptyLine >> many (atclause <|> assign <|> cassign <|> block) ~>> 
       atid <- at_ident
       case atid of
         "import" -> Import <$> getline <*> exprseq_nl
+        "include" -> Include <$> getline <*> exprseq_nl
         "define" -> Macro <$> getline <*> defname <*> defargs <*> blockitems
-        _        -> unexpected "at-identifier, expecting @import or @define"
+        _        -> unexpected "at-identifier, expecting @import, @include or @define"
     assign  = Assign Always <$> getline <*> varassign <*> exprseq_nl
     cassign = Assign IfNotAssigned <$> getline <*> cvarassign <*> exprseq_nl
     blockitems = do
@@ -283,34 +288,33 @@ expression = plusExpr `chainr1` listOp
 ------------------------------------------------------------------------------------------
 -- the evaluator
 
-data EvalError = EvalErr !Line !String  -- line, message
+data EvalError = EvalErr !String !Line !String  -- filename, line, message
 type Dict cont = Map.Map String cont
 type Eval res  = RWST (Dict Expr, Dict (Line, [String], [Item])) ()
-                 [Topl] (Either EvalError) res
+                 (String, [Topl]) (ErrorT EvalError IO) res
 
 instance Error EvalError where
-  strMsg s = EvalErr 0 s
+  strMsg s = EvalErr "" 0 s
 
 instance Show EvalError where
-  show (EvalErr 0 msg) = ": " ++ msg
-  show (EvalErr l msg) = "(line " ++ show l ++ "):\n" ++ msg
+  show (EvalErr f 0 msg) = "(file " ++ show f ++ "): " ++ msg
+  show (EvalErr f l msg) = "(file " ++ show f ++ ", line " ++ show l ++ "):\n" ++ msg
 
-evalErr line err = throwError $ EvalErr line err
+evalErr line err = do
+  fname <- gets fst
+  throwError $ EvalErr fname line err
 
-translate :: [Topl] -> [(String, String)] -> Either EvalError [Topl]
-translate toplevels initial_map =
-  fst <$> execRWST (resolveToplevels toplevels)
-                   (evalMap Map.empty initial_map, Map.empty) []
+translate :: String -> [Topl] -> Dict Expr -> IO (Either EvalError [Topl])
+translate filename toplevels varmap = do
+  res <- runErrorT $ execRWST (resolveToplevels toplevels) (varmap, Map.empty) (filename, [])
+  return (snd.fst <$> res)
   where
-  -- evaluate items in the initial map
-  evalMap :: Dict Expr -> [(String, String)] -> Dict Expr
-  evalMap map [] = map
-  evalMap map ((n,v):ds) = evalMap (Map.insert n
-                                    (evalString map "initial variables" v) map) ds
-
   -- resolve a list of toplevels -- this keeps a state of all collected blocks
   -- returns (Left error) or (Right ([evaluated blocks], ()))
   resolveToplevels :: [Topl] -> Eval ()
+  resolveToplevels (SetFilename filename : ts) = do
+    modify (const filename *** id)
+    resolveToplevels ts
   resolveToplevels (Block line sels items : ts) = do
     -- block: resolve it and continue
     resolveBlock line sels items
@@ -322,9 +326,21 @@ translate toplevels initial_map =
     -- import: just append it to the collected blocks
     exprs <- evalExprseq line exprjoin exprseq
     case exprs of
-      CSSFunc "url" u -> modify (Import line [CSSFunc "url" u] : )
+      CSSFunc "url" u -> modify (id *** (Import line [CSSFunc "url" u] : ))
       v -> evalErr line $ "invalid thing to import, should be url(): " ++ show v
     resolveToplevels ts
+  resolveToplevels (Include line exprseq : ts) = do
+    -- include: read and append it
+    exprs <- evalExprseq line exprjoin exprseq
+    case exprs of
+      String filename -> do
+        oldfilename <- gets fst
+        contents <- liftIO $ readFile filename
+        case runParser parser [0] filename (preprocess contents) of
+          Left err -> evalErr line $ "Parse error in @include " ++ show err
+          Right parse -> resolveToplevels ((SetFilename filename : parse) ++
+                                           (SetFilename oldfilename : ts))
+      v -> evalErr line $ "invalid thing to include, should be a string: " ++ show v
   resolveToplevels (Assign how line name exprseq : ts) = do
     -- assignment: store it in the variable map and continue
     ispresent <- asks (Map.member name . fst)
@@ -336,7 +352,7 @@ translate toplevels initial_map =
   resolveBlock :: Line -> [String] -> [Item] -> Eval ()
   resolveBlock line sels items = do
     props <- mapM (resolveItem sels) items
-    modify (Block line sels (concat props) : )
+    modify (id *** (Block line sels (concat props) : ))
 
   resolveItem :: [String] -> Item -> Eval [Item]
   resolveItem _ (Property line name exprseq) = do
@@ -380,8 +396,8 @@ translate toplevels initial_map =
       [Error err] -> evalErr line err
       result      -> return $ cons result
 
-  -- evaluate an Expr
-  eval varmap exp = let eval' = eval varmap in case exp of
+-- evaluate an Expr
+eval varmap exp = let eval' = eval varmap in case exp of
     Var a -> case Map.lookup a varmap of
       Just val -> val
       Nothing  -> Error $ "variable " ++ a ++ " is not defined"
@@ -493,29 +509,36 @@ translate toplevels initial_map =
       where cx = inrange 0 255 . floor
     -- all other cases are primitive
     atom -> atom
+  where
+    jshow Nothing  = ""
+    jshow (Just a) = show a
 
-  -- evaluate a string
-  evalString varmap source string = case runParser exprseq [] "" string of
-    Left err  -> Error $ showWithoutPos ("in " ++ source ++ ":") err
-    Right []  -> String ""
-    Right [e] -> eval varmap e
-    Right seq -> findError2 Subseq $ map (eval varmap) seq
+    rgbColor = either (colors Map.!) id
 
-  -- return either the first Error in xs, or else xs
-  findError xs  = head $ [[Error e] | Error e <- xs] ++ [xs]
-  -- return either the first Error in xs, or else (cons xs)
-  findError2 cons xs = head $ [Error e | Error e <- xs] ++ [cons xs]
+    getAmount arg = case arg of
+      Nothing -> 0.1
+      Just (Number am) -> (fromRational am) / 100
+      Just (Dim (am, "%")) -> (fromRational am) / 100
+      _ -> 0
 
-  jshow Nothing  = ""
-  jshow (Just a) = show a
 
-  rgbColor = either (colors Map.!) id
+-- return either the first Error in xs, or else xs
+findError xs  = head $ [[Error e] | Error e <- xs] ++ [xs]
+-- return either the first Error in xs, or else (cons xs)
+findError2 cons xs = head $ [Error e | Error e <- xs] ++ [cons xs]
 
-  getAmount arg = case arg of
-    Nothing -> 0.1
-    Just (Number am) -> (fromRational am) / 100
-    Just (Dim (am, "%")) -> (fromRational am) / 100
-    _ -> 0
+-- evaluate a string
+evalString varmap source string = case runParser exprseq [] "" string of
+  Left err  -> Error $ showWithoutPos ("in " ++ source ++ ":") err
+  Right []  -> String ""
+  Right [e] -> eval varmap e
+  Right seq -> findError2 Subseq $ map (eval varmap) seq
+
+-- evaluate expressions into a map
+evalMap :: Dict Expr -> [(String, String)] -> Dict Expr
+evalMap map [] = map
+evalMap map ((n,v):ds) = evalMap (Map.insert n
+                                  (evalString map "initial variables" v) map) ds
 
 ------------------------------------------------------------------------------------------
 -- main conversion function
@@ -525,16 +548,20 @@ format blocks = concatMap formatBlock blocks where
   formatBlock (Block _ sels props) =
     joinStr ", " sels ++ " {\n" ++ unlines (map formatProp props) ++ "}\n\n"
   formatBlock (Import _ exprs) = "@import " ++ joinShow " " exprs ++ ";\n"
+  formatBlock (Include _ _) = error "remaining include in eval result"
   formatBlock (Macro _ _ _ _) = error "remaining definition in eval result"
   formatBlock (Assign _ _ _ _) = error "remaining assignment in eval result"
+  formatBlock (SetFilename _) = error "remaining filename in eval result"
   formatProp (Property _ name [val]) = "    " ++ name ++  ": " ++ show val ++ ";"
   formatProp (Property _ _ _) = error "property has not exactly one value"
   formatProp _ = error "remaining subitems in block"
 
-cleverCSSConvert :: SourceName -> String -> [(String, String)] -> Either String String
+cleverCSSConvert :: SourceName -> String -> [(String, String)] -> IO (Either String String)
 cleverCSSConvert name input initial_map =
   case runParser parser [0] name (preprocess input) of
-      Left err    -> Left $ "Parse error " ++ show err
-      Right parse -> case translate parse initial_map of
-        Left evalerr -> Left $ "Evaluation error " ++ show evalerr
-        Right blocks -> Right $ format (reverse blocks)
+      Left err    -> return . Left $ "Parse error " ++ show err
+      Right parse -> do
+        result <- translate name parse (evalMap Map.empty initial_map)
+        case result of
+          Left evalerr -> return . Left $ "Evaluation error " ++ show evalerr
+          Right blocks -> return . Right $ format (reverse blocks)

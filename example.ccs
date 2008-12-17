@@ -5,8 +5,11 @@ base_padding = 20px
 background_color = #eee // this is a comment
 text_color = #111
 link_color = #ff0000
+font = Times
 
 @import url($base_url + "/styles.css");
+
+@include "inc.ccs"
 
 @define disp(a):
     display: $a

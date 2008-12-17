@@ -196,7 +196,18 @@ Use ("substitute") them like this::
 Macro substitutions are handled as if the macro's contents are placed at the
 exact location of the substitution, with the argument variables replaced by the
 given expressions.
-       
+
+
+Includes
+~~~~~~~~
+
+Including a file::
+
+   @include "filename.ccs"
+
+The contents of the included file are treated as if they occurred in the
+including file at the point of the include command.
+
 
 Values and expressions
 ----------------------
