@@ -2,7 +2,7 @@
 -- CleverCSS in Haskell, (c) 2007, 2008 Georg Brandl. Licensed under the BSD license.
 --
 -- Text.CSS.CleverCSSUtil module: utilities.
------------------------------------------------------------------------------------------- 
+------------------------------------------------------------------------------------------
 
 module Text.CSS.CleverCSSUtil (
              (+++), (+:+), (~>>), varCount, perhaps,
@@ -18,7 +18,7 @@ import Control.Arrow ((&&&))
 import Control.Monad (msum)
 import Data.Char
 import Data.List hiding (partition)
-import Data.Ratio (Ratio, (%), numerator, denominator)
+import Data.Ratio ((%), numerator, denominator)
 import Numeric (readFloat)
 import Text.Printf (printf)
 import Text.ParserCombinators.Parsec (choice, count, try, option, GenParser)
@@ -303,10 +303,10 @@ spanList func list@(x:xs) =
 breakList :: ([a] -> Bool) -> [a] -> ([a], [a])
 breakList func = spanList (not . func)
 
-split :: String -> String -> [String] 
+split :: String -> String -> [String]
 split _ [] = []
 split delim str =
-    let (firstline, remainder) = breakList (isPrefixOf delim) str in 
+    let (firstline, remainder) = breakList (isPrefixOf delim) str in
     firstline : case remainder of
                   [] -> []
                   x -> if x == delim then [] : []
@@ -314,7 +314,7 @@ split delim str =
 
 {-# INLINE joinStr #-}
 joinStr d x = concat (intersperse d x)
-{-# INLINE joinShow #-} 
+{-# INLINE joinShow #-}
 joinShow d x = joinStr d (map show x)
 
 hexToString :: String -> Char
@@ -341,6 +341,6 @@ ratMod x y = (nx `mod` ny) % d where
   ny = numerator y * (d `div` dy)
 
 roundRat :: Rational -> Rational -> Rational
-roundRat num places = 
+roundRat num places =
     let exp = round places :: Integer in
     (round (num * (10^exp))) % (10^exp) -- XXX todo
