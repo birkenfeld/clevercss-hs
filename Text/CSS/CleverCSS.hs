@@ -70,7 +70,7 @@ instance Show Topl where
   show (Assign Always _ name exprs) = name ++ " = " ++ joinShow " " exprs
   show (Assign IfNotAssigned _ name exprs) = name ++ " ?= " ++ joinShow " " exprs
   show (Import _ exprs) = "@import " ++ joinShow " " exprs
-  show (Macro _ sel args items) = "@define " ++ sel ++ "(" ++ joinStr ", " args ++
+  show (Macro _ sel argnames items) = "@define " ++ sel ++ "(" ++ joinStr ", " argnames ++
                                   "):\n" ++ unlines (map ("  "++) (map show items))
   show (Block _ sels items) = (joinStr ", " sels) ++ ":\n" ++
                               unlines (map ("  "++) (map show items))
@@ -285,8 +285,8 @@ expression = plusExpr `chainr1` listOp
 
 data EvalError = EvalErr !Line !String  -- line, message
 type Dict cont = Map.Map String cont
-type EvalMonad = RWST (Dict Expr, Dict (Line, [String], [Item])) ()
-                      [Topl] (Either EvalError) ()
+type Eval res  = RWST (Dict Expr, Dict (Line, [String], [Item])) ()
+                 [Topl] (Either EvalError) res
 
 instance Error EvalError where
   strMsg s = EvalErr 0 s
@@ -295,71 +295,77 @@ instance Show EvalError where
   show (EvalErr 0 msg) = ": " ++ msg
   show (EvalErr l msg) = "(line " ++ show l ++ "):\n" ++ msg
 
+evalErr line err = throwError $ EvalErr line err
+
 translate :: [Topl] -> [(String, String)] -> Either EvalError [Topl]
 translate toplevels initial_map =
-  fmap fst $ execRWST (resolve_toplevels toplevels)
-                      (eval_map Map.empty initial_map, Map.empty) []
+  fst <$> execRWST (resolveToplevels toplevels)
+                   (evalMap Map.empty initial_map, Map.empty) []
   where
   -- evaluate items in the initial map
-  eval_map :: Dict Expr -> [(String, String)] -> Dict Expr
-  eval_map map [] = map
-  eval_map map ((n,v):ds) = eval_map (Map.insert n
-                                           (evaluate map "initial variables" v) map) ds
+  evalMap :: Dict Expr -> [(String, String)] -> Dict Expr
+  evalMap map [] = map
+  evalMap map ((n,v):ds) = evalMap (Map.insert n
+                                    (evalString map "initial variables" v) map) ds
 
-  -- this keeps a state of all collected blocks.
-  -- it returns (Left error) or (Right ([evaluated blocks], ()))
-  resolve_toplevels :: [Topl] -> EvalMonad
-  resolve_toplevels (Block line sels items : ts) = do
-    resolve_block line sels items
-    resolve_toplevels ts
-  resolve_toplevels (Macro line sel args items : ts) = do
-    local (id *** Map.insert sel (line, args, items)) (resolve_toplevels ts)
-  resolve_toplevels (Import line exprseq : ts) = do
-    exprs <- eval_exprseq line exprjoin exprseq
+  -- resolve a list of toplevels -- this keeps a state of all collected blocks
+  -- returns (Left error) or (Right ([evaluated blocks], ()))
+  resolveToplevels :: [Topl] -> Eval ()
+  resolveToplevels (Block line sels items : ts) = do
+    -- block: resolve it and continue
+    resolveBlock line sels items
+    resolveToplevels ts
+  resolveToplevels (Macro line sel argnames items : ts) = do
+    -- macro definition: store the items in the macro map and continue
+    local (id *** Map.insert sel (line, argnames, items)) (resolveToplevels ts)
+  resolveToplevels (Import line exprseq : ts) = do
+    -- import: just append it to the collected blocks
+    exprs <- evalExprseq line exprjoin exprseq
     case exprs of
       CSSFunc "url" u -> modify (Import line [CSSFunc "url" u] : )
-      v -> throwError $ EvalErr line $
-           "invalid thing to import, should be url(): " ++ show v
-    resolve_toplevels ts
-  resolve_toplevels (Assign how line name exprseq : ts) = do
+      v -> evalErr line $ "invalid thing to import, should be url(): " ++ show v
+    resolveToplevels ts
+  resolveToplevels (Assign how line name exprseq : ts) = do
+    -- assignment: store it in the variable map and continue
     ispresent <- asks (Map.member name . fst)
-    if ispresent && how == IfNotAssigned then resolve_toplevels ts else do
-      exprs <- eval_exprseq line exprjoin exprseq
-      local (Map.insert name exprs *** id) (resolve_toplevels ts)
-  resolve_toplevels [] = return ()
+    if ispresent && how == IfNotAssigned then resolveToplevels ts else do
+      exprs <- evalExprseq line exprjoin exprseq
+      local (Map.insert name exprs *** id) (resolveToplevels ts)
+  resolveToplevels [] = return ()
 
-  resolve_block line sels items = do
-    props <- mapM (resolve_item sels) items
+  resolveBlock :: Line -> [String] -> [Item] -> Eval ()
+  resolveBlock line sels items = do
+    props <- mapM (resolveItem sels) items
     modify (Block line sels (concat props) : )
 
-  resolve_item _ (Property line name exprseq) = do
-    expr <- eval_exprseq line exprjoin exprseq
+  resolveItem :: [String] -> Item -> Eval [Item]
+  resolveItem _ (Property line name exprseq) = do
+    expr <- evalExprseq line exprjoin exprseq
     return [Property line name [expr]]
-  resolve_item sels (UseMacro line name args) = do
+  resolveItem sels (UseMacro line name args) = do
     defmap <- asks snd
     case Map.lookup name defmap of
-      Nothing -> throwError $ EvalErr line ("macro " ++ name ++ " is not defined")
+      Nothing -> evalErr line ("macro " ++ name ++ " is not defined")
       Just (_, argnames, items) -> do
         let numargs = length argnames
             given   = length args
         if numargs /= given
-          then throwError $ EvalErr line ("wrong number of arguments for macro " ++
-                                          name ++ ": given " ++ show given ++
-                                          ", should be " ++ show numargs)
+          then evalErr line ("wrong number of arguments for macro " ++ name ++
+                             ": given " ++ show given ++ ", should be " ++ show numargs)
           else do
-            evargs <- eval_exprseq line id args
+            evaledargs <- evalExprseq line id args
             let updfunc old = (foldl (flip $ uncurry Map.insert)
-                               (fst old) (zip argnames evargs), snd old)
-            local updfunc (fmap concat $ mapM (resolve_item sels) items)
-  resolve_item sels (SubBlock line subsels items) =
-    resolve_block line (combine_sels sels subsels) items >> return []
-  resolve_item _ (SubGroup _ name items) = mapM (resolve_group name) items
+                               (fst old) (zip argnames evaledargs), snd old)
+            local updfunc (concat <$> mapM (resolveItem sels) items)
+  resolveItem sels (SubBlock line subsels items) =
+    resolveBlock line (combineSels sels subsels) items >> return []
+  resolveItem _ (SubGroup _ name items) = mapM (resolveGroup name) items
 
-  resolve_group name (Property line prop exprs) =
-    fmap head $ resolve_item [] (Property line (name ++ "-" ++ prop) exprs)
-  resolve_group _ _ = error "impossible item in group"
+  resolveGroup name (Property line prop exprs) =
+    head <$> resolveItem [] (Property line (name ++ "-" ++ prop) exprs)
+  resolveGroup _ _ = error "impossible item in group"
 
-  combine_sels sels subsels = [comb s1 s2 | s1 <- sels, s2 <- subsels]
+  combineSels sels subsels = [comb s1 s2 | s1 <- sels, s2 <- subsels]
     where comb s1 s2 = maybe (s1 ++ " " ++ s2)
                        (\i -> (take i s2) ++ s1 ++ (drop (i+1) s2))
                        (findIndex (=='&') s2)
@@ -367,11 +373,11 @@ translate toplevels initial_map =
   exprjoin [e] = e
   exprjoin es  = Bare $ joinShow " " es
 
-  eval_exprseq _    cons []  = return $ cons [String ""]
-  eval_exprseq line cons seq = do
+  evalExprseq _    cons []  = return $ cons [String ""]
+  evalExprseq line cons seq = do
     varmap <- asks fst
     case findError (map (eval varmap) seq) of
-      [Error err] -> throwError $ EvalErr line err
+      [Error err] -> evalErr line err
       result      -> return $ cons result
 
   -- evaluate an Expr
@@ -452,7 +458,7 @@ translate toplevels initial_map =
       ("strip", String s, Nothing) -> String (trim s)
       ("split", String s, Just (String delim)) ->
         ExprList (map String (split delim s))
-      ("eval", String s, Nothing) -> evaluate varmap "evaled string" s
+      ("eval", String s, Nothing) -> evalString varmap "evaled string" s
       -- Number methods
       ("round", Number n, Just (Number p)) -> Number (roundRat n p)
       ("round", Number n, Nothing) -> Number (roundRat n 0)
@@ -489,7 +495,7 @@ translate toplevels initial_map =
     atom -> atom
 
   -- evaluate a string
-  evaluate varmap source string = case runParser exprseq [] "" string of
+  evalString varmap source string = case runParser exprseq [] "" string of
     Left err  -> Error $ showWithoutPos ("in " ++ source ++ ":") err
     Right []  -> String ""
     Right [e] -> eval varmap e
@@ -515,15 +521,15 @@ translate toplevels initial_map =
 -- main conversion function
 
 format :: [Topl] -> String
-format blocks = concatMap format_block blocks where
-  format_block (Block _ sels props) =
-    joinStr ", " sels ++ " {\n" ++ unlines (map format_prop props) ++ "}\n\n"
-  format_block (Import _ exprs) = "@import " ++ joinShow " " exprs ++ ";\n"
-  format_block (Macro _ _ _ _) = error "remaining definition in eval result"
-  format_block (Assign _ _ _ _) = error "remaining assignment in eval result"
-  format_prop (Property _ name [val]) = "    " ++ name ++  ": " ++ show val ++ ";"
-  format_prop (Property _ _ _) = error "property has not exactly one value"
-  format_prop _ = error "remaining subitems in block"
+format blocks = concatMap formatBlock blocks where
+  formatBlock (Block _ sels props) =
+    joinStr ", " sels ++ " {\n" ++ unlines (map formatProp props) ++ "}\n\n"
+  formatBlock (Import _ exprs) = "@import " ++ joinShow " " exprs ++ ";\n"
+  formatBlock (Macro _ _ _ _) = error "remaining definition in eval result"
+  formatBlock (Assign _ _ _ _) = error "remaining assignment in eval result"
+  formatProp (Property _ name [val]) = "    " ++ name ++  ": " ++ show val ++ ";"
+  formatProp (Property _ _ _) = error "property has not exactly one value"
+  formatProp _ = error "remaining subitems in block"
 
 cleverCSSConvert :: SourceName -> String -> [(String, String)] -> Either String String
 cleverCSSConvert name input initial_map =
