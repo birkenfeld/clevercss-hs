@@ -5,7 +5,7 @@
 --
 -- TODO: properly parse selectors before splitting them
 ------------------------------------------------------------------------------------------
-{-# LANGUAGE PatternGuards, FlexibleInstances #-}
+{-# LANGUAGE PatternGuards, TypeSynonymInstances #-}
 
 module Text.CSS.CleverCSS (cleverCSSConvert) where
 
@@ -15,16 +15,18 @@ import Control.Monad.Error
 import Control.Monad.RWS
 import Data.Char (toUpper, toLower)
 import Data.List (findIndex)
+import Data.Sequence (Seq, singleton)
 import Text.Printf (printf)
 import Text.ParserCombinators.Parsec hiding (newline)
+import qualified Data.Foldable as F
 import qualified Data.Map as Map
 
 import Text.CSS.CleverCSSUtil
 
 -- Applicative instance for Parsec parsers: not needed for parsec 3.0
-instance Applicative (GenParser a b) where
-  pure = return
-  (<*>) = ap
+--instance Applicative (GenParser a b) where
+--  pure = return
+--  (<*>) = ap
 
 css_functions = ["url", "attr", "counter"] -- rgb() is special
 
@@ -290,8 +292,8 @@ expression = plusExpr `chainr1` listOp
 
 data EvalError = EvalErr !String !Line !String  -- filename, line, message
 type Dict cont = Map.Map String cont
-type Eval res  = RWST (Dict Expr, Dict (Line, [String], [Item])) ()
-                 (String, [Topl]) (ErrorT EvalError IO) res
+type Eval res  = RWST (Dict Expr, Dict (Line, [String], [Item])) (Seq Topl)
+                 String (ErrorT EvalError IO) res
 
 instance Error EvalError where
   strMsg s = EvalErr "" 0 s
@@ -301,19 +303,20 @@ instance Show EvalError where
   show (EvalErr f l msg) = "(file " ++ show f ++ ", line " ++ show l ++ "):\n" ++ msg
 
 evalErr line err = do
-  fname <- gets fst
+  fname <- get
   throwError $ EvalErr fname line err
 
-translate :: String -> [Topl] -> Dict Expr -> IO (Either EvalError [Topl])
+translate :: String -> [Topl] -> Dict Expr -> IO (Either EvalError (Seq Topl))
 translate filename toplevels varmap = do
-  res <- runErrorT $ execRWST (resolveToplevels toplevels) (varmap, Map.empty) (filename, [])
-  return (snd.fst <$> res)
+  res <- runErrorT $ execRWST (resolveToplevels toplevels) (varmap, Map.empty) filename
+  return (snd <$> res)
   where
+  emitBlock = tell . singleton
   -- resolve a list of toplevels -- this keeps a state of all collected blocks
   -- returns (Left error) or (Right ([evaluated blocks], ()))
   resolveToplevels :: [Topl] -> Eval ()
   resolveToplevels (SetFilename filename : ts) = do
-    modify (const filename *** id)
+    put filename
     resolveToplevels ts
   resolveToplevels (Block line sels items : ts) = do
     -- block: resolve it and continue
@@ -326,7 +329,7 @@ translate filename toplevels varmap = do
     -- import: just append it to the collected blocks
     exprs <- evalExprseq line exprjoin exprseq
     case exprs of
-      CSSFunc "url" u -> modify (id *** (Import line [CSSFunc "url" u] : ))
+      CSSFunc "url" u -> emitBlock $ Import line [CSSFunc "url" u]
       v -> evalErr line $ "invalid thing to import, should be url(): " ++ show v
     resolveToplevels ts
   resolveToplevels (Include line exprseq : ts) = do
@@ -334,7 +337,7 @@ translate filename toplevels varmap = do
     exprs <- evalExprseq line exprjoin exprseq
     case exprs of
       String filename -> do
-        oldfilename <- gets fst
+        oldfilename <- get
         contents <- liftIO $ readFile filename
         case runParser parser [0] filename (preprocess contents) of
           Left err -> evalErr line $ "Parse error in @include " ++ show err
@@ -352,7 +355,7 @@ translate filename toplevels varmap = do
   resolveBlock :: Line -> [String] -> [Item] -> Eval ()
   resolveBlock line sels items = do
     props <- mapM (resolveItem sels) items
-    modify (id *** (Block line sels (concat props) : ))
+    emitBlock $ Block line sels (concat props)
 
   resolveItem :: [String] -> Item -> Eval [Item]
   resolveItem _ (Property line name exprseq) = do
@@ -543,8 +546,8 @@ evalMap map ((n,v):ds) = evalMap (Map.insert n
 ------------------------------------------------------------------------------------------
 -- main conversion function
 
-format :: [Topl] -> String
-format blocks = concatMap formatBlock blocks where
+format :: Seq Topl -> String
+format blocks = F.foldl (\x y -> x ++ formatBlock y) "" blocks where
   formatBlock (Block _ sels props) =
     joinStr ", " sels ++ " {\n" ++ unlines (map formatProp props) ++ "}\n\n"
   formatBlock (Import _ exprs) = "@import " ++ joinShow " " exprs ++ ";\n"
@@ -564,4 +567,4 @@ cleverCSSConvert name input initial_map =
         result <- translate name parse (evalMap Map.empty initial_map)
         case result of
           Left evalerr -> return . Left $ "Evaluation error " ++ show evalerr
-          Right blocks -> return . Right $ format (reverse blocks)
+          Right blocks -> return . Right $ format blocks
