@@ -10,7 +10,6 @@
 module Text.CSS.CleverCSS (cleverCSSConvert) where
 
 import Control.Applicative (Applicative(..), (<$>))
-import Control.Arrow ((***))
 import Control.Monad.Error
 import Control.Monad.RWS
 import Data.Char (toUpper, toLower)
@@ -290,10 +289,10 @@ expression = plusExpr `chainr1` listOp
 ------------------------------------------------------------------------------------------
 -- the evaluator
 
-data EvalError = EvalErr !String !Line !String  -- filename, line, message
+data EvalError = EvalErr !SourceName !Line !String  -- filename, line, message
 type Dict cont = Map.Map String cont
-type Eval res  = RWST (Dict Expr, Dict (Line, [String], [Item])) (Seq Topl)
-                 String (ErrorT EvalError IO) res
+data Env = Env { vars :: Dict Expr, macros :: Dict (Line, [String], [Item]) }
+type Eval res  = RWST Env (Seq Topl) SourceName (ErrorT EvalError IO) res
 
 instance Error EvalError where
   strMsg s = EvalErr "" 0 s
@@ -306,14 +305,18 @@ evalErr line err = do
   fname <- get
   throwError $ EvalErr fname line err
 
+updateVars   f r = r { vars   = f (vars r)   }
+updateMacros f r = r { macros = f (macros r) }
+
 translate :: String -> [Topl] -> Dict Expr -> IO (Either EvalError (Seq Topl))
 translate filename toplevels varmap = do
-  res <- runErrorT $ execRWST (resolveToplevels toplevels) (varmap, Map.empty) filename
+  let initialEnv = Env { vars = varmap, macros = Map.empty }
+  res <- runErrorT $ execRWST (resolveToplevels toplevels) initialEnv filename
   return (snd <$> res)
   where
   emitBlock = tell . singleton
-  -- resolve a list of toplevels -- this keeps a state of all collected blocks
-  -- returns (Left error) or (Right ([evaluated blocks], ()))
+  -- resolve a list of toplevels -- this "writes" collected blocks
+  -- returns (Left error) or (Right (filename, collected blocks))
   resolveToplevels :: [Topl] -> Eval ()
   resolveToplevels (SetFilename filename : ts) = do
     put filename
@@ -324,7 +327,7 @@ translate filename toplevels varmap = do
     resolveToplevels ts
   resolveToplevels (Macro line sel argnames items : ts) = do
     -- macro definition: store the items in the macro map and continue
-    local (id *** Map.insert sel (line, argnames, items)) (resolveToplevels ts)
+    local (updateMacros $ Map.insert sel (line, argnames, items)) (resolveToplevels ts)
   resolveToplevels (Import line exprseq : ts) = do
     -- import: just append it to the collected blocks
     exprs <- evalExprseq line exprjoin exprseq
@@ -346,10 +349,10 @@ translate filename toplevels varmap = do
       v -> evalErr line $ "invalid thing to include, should be a string: " ++ show v
   resolveToplevels (Assign how line name exprseq : ts) = do
     -- assignment: store it in the variable map and continue
-    ispresent <- asks (Map.member name . fst)
+    ispresent <- asks (Map.member name . vars)
     if ispresent && how == IfNotAssigned then resolveToplevels ts else do
       exprs <- evalExprseq line exprjoin exprseq
-      local (Map.insert name exprs *** id) (resolveToplevels ts)
+      local (updateVars $ Map.insert name exprs) (resolveToplevels ts)
   resolveToplevels [] = return ()
 
   resolveBlock :: Line -> [String] -> [Item] -> Eval ()
@@ -362,8 +365,8 @@ translate filename toplevels varmap = do
     expr <- evalExprseq line exprjoin exprseq
     return [Property line name [expr]]
   resolveItem sels (UseMacro line name args) = do
-    defmap <- asks snd
-    case Map.lookup name defmap of
+    lookresult <- asks (Map.lookup name . macros)
+    case lookresult of
       Nothing -> evalErr line ("macro " ++ name ++ " is not defined")
       Just (_, argnames, items) -> do
         let numargs = length argnames
@@ -374,7 +377,7 @@ translate filename toplevels varmap = do
           else do
             evaledargs <- evalExprseq line id args
             -- update locals with evaluated arguments
-            let updfunc = (Map.union (Map.fromList $ zip argnames evaledargs) *** id)
+            let updfunc = updateVars $ Map.union (Map.fromList $ zip argnames evaledargs)
             local updfunc (concat <$> mapM (resolveItem sels) items)
   resolveItem sels (SubBlock line subsels items) =
     resolveBlock line (combineSels sels subsels) items >> return []
@@ -394,7 +397,7 @@ translate filename toplevels varmap = do
 
   evalExprseq _    cons []  = return $ cons [String ""]
   evalExprseq line cons seq = do
-    varmap <- asks fst
+    varmap <- asks vars
     case findError (map (eval varmap) seq) of
       [Error err] -> evalErr line err
       result      -> return $ cons result
