@@ -292,6 +292,12 @@ expression = plusExpr `chainr1` listOp
 data EvalError = EvalErr !SourceName !Line !String  -- filename, line, message
 type Dict cont = Map.Map String cont
 data Env = Env { vars :: Dict Expr, macros :: Dict (Line, [String], [Item]) }
+-- the main evaluator monad, using every part of RWST:
+--     the Reader type is the environment of variables and macros
+--     the Writer type is the output of evaluated toplevels
+--     the State type is the filename of the part of code currently evaluated
+--     the underlying monad handles errors and eventually does IO
+--     (which is necessary for including files)
 type Eval res  = RWST Env (Seq Topl) SourceName (ErrorT EvalError IO) res
 
 instance Error EvalError where
