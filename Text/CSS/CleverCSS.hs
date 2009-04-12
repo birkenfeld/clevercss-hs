@@ -284,7 +284,7 @@ expression = plusExpr `chainr1` listOp
                    <?> "string"
     hexcolor     = (pws $ char '#' >> ((try $ count 6 hexDigit) <|> count 3 hexDigit))
                    <?> "color"
-    op c         = (pws $ char c) <?> "operator " ++ [c]
+    op c         = (pws $ char c) <?> "operator " ++ show c
 
 ------------------------------------------------------------------------------------------
 -- the evaluator
