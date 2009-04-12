@@ -145,6 +145,22 @@ Property specifications work like in CSS: just put a colon after the property
 name.  You can use expressions or variable references (see below) only in
 property values, not in property names.
 
+.. note::
+
+   Due to the current limited parsing of CSS selectors, CleverCSS can confuse
+   the ``://`` in URLs occurring in property values with a selector and a
+   following comment.  Use a variable for the URL (or at least a part of it
+   that includes the ``://``) to work around that::
+
+      // bad - will cause parsing error
+      div:
+          background-image: url("http://www.example.com/image.png")
+
+      // workaround
+      host = "http://www.example.com/"
+      div:
+          background-image: url($host + "image.png")
+
 
 Property groups
 ~~~~~~~~~~~~~~~
