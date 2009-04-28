@@ -4,6 +4,10 @@ all-opt: clean
 	ghc --make -O1 -funbox-strict-fields -o clevercss CCMain.hs
 all-prof:
 	ghc --make -prof -auto-all -o clevercss CCMain.hs
+all-cov:
+	ghc --make -fhpc -auto-all -o clevercss CCMain.hs
+	./clevercss -D supply_me_in_default_variables="5px + 2px" example.ccs
+	hpc markup --destdir=cov clevercss.tix
 test: all
 	./clevercss -D supply_me_in_default_variables="5px + 2px" example.ccs
 	cat example.css
