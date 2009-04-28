@@ -1,3 +1,6 @@
 syntax: glob
 *.hi
 *.o
+cov/
+.hpc/
+dist/
