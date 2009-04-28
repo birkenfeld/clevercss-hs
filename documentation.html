@@ -194,6 +194,23 @@ occurrences of the ampersand are replaced.</p>
 <p>Property specifications work like in CSS: just put a colon after the property
 name.  You can use expressions or variable references (see below) only in
 property values, not in property names.</p>
+<div class="note">
+<p class="first admonition-title">Note</p>
+<p>Due to the current limited parsing of CSS selectors, CleverCSS can confuse
+the <tt class="docutils literal"><span class="pre">://</span></tt> in URLs occurring in property values with a selector and a
+following comment.  Use a variable for the URL (or at least a part of it
+that includes the <tt class="docutils literal"><span class="pre">://</span></tt>) to work around that:</p>
+<pre class="last literal-block">
+// bad - will cause parsing error
+div:
+    background-image: url(&quot;http://www.example.com/image.png&quot;)
+
+// workaround
+host = &quot;http://www.example.com/&quot;
+div:
+    background-image: url($host + &quot;image.png&quot;)
+</pre>
+</div>
 </div>
 <div class="section" id="property-groups">
 <h2>Property groups</h2>
@@ -240,6 +257,15 @@ body:
 <p>Macro substitutions are handled as if the macro's contents are placed at the
 exact location of the substitution, with the argument variables replaced by the
 given expressions.</p>
+</div>
+<div class="section" id="includes">
+<h2>Includes</h2>
+<p>Including a file:</p>
+<pre class="literal-block">
+&#64;include &quot;filename.ccs&quot;
+</pre>
+<p>The contents of the included file are treated as if they occurred in the
+including file at the point of the include command.</p>
 </div>
 </div>
 <div class="section" id="values-and-expressions">
