@@ -22,11 +22,6 @@ import qualified Data.Map as Map
 
 import Text.CSS.CleverCSSUtil
 
--- Applicative instance for Parsec parsers: not needed for parsec 3.0
---instance Applicative (GenParser a b) where
---  pure = return
---  (<*>) = ap
-
 css_functions = ["url", "attr", "counter"] -- rgb() is special
 
 ------------------------------------------------------------------------------------------
