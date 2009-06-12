@@ -18,9 +18,9 @@ Flag splitBase
 
 Library
   If flag(splitBase)
-    Build-Depends: base >= 3, containers, parsec, mtl
+    Build-Depends: base >= 3, containers, parsec >= 3, mtl
   Else
-    Build-Depends: base < 3, parsec, mtl
+    Build-Depends: base < 3, parsec >= 3, mtl
   Exposed-Modules: Text.CSS.CleverCSS
   Other-Modules: Text.CSS.CleverCSSUtil
   Extensions: PatternGuards
