@@ -17,6 +17,7 @@ import Data.List (findIndex)
 import Data.Sequence (Seq, singleton)
 import Text.Printf (printf)
 import Text.ParserCombinators.Parsec hiding (newline)
+import qualified Control.Exception as E
 import qualified Data.Foldable as F
 import qualified Data.Map as Map
 
@@ -342,11 +343,15 @@ translate filename toplevels varmap = do
     case exprs of
       String filename -> do
         oldfilename <- get
-        contents <- liftIO $ readFile filename
-        case runParser parser [0] filename (preprocess contents) of
-          Left err -> evalErr line $ "Parse error in @include " ++ show err
-          Right parse -> resolveToplevels ((SetFilename filename : parse) ++
-                                           (SetFilename oldfilename : ts))
+        contents <- liftIO $ E.try (readFile filename)
+        case contents of
+          Left ex -> evalErr line ("error reading included file: " ++
+                                   show (ex :: IOError))
+          Right c ->
+            case runParser parser [0] filename (preprocess c) of
+              Left err -> evalErr line $ "parse error in @include " ++ show err
+              Right parse -> resolveToplevels ((SetFilename filename : parse) ++
+                                               (SetFilename oldfilename : ts))
       v -> evalErr line $ "invalid thing to include, should be a string: " ++ show v
   resolveToplevels (Assign how line name exprseq : ts) = do
     -- assignment: store it in the variable map and continue
