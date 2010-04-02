@@ -14,6 +14,7 @@ import Control.Monad.Error
 import Control.Monad.RWS
 import Data.Char (toUpper, toLower)
 import Data.List (findIndex)
+import Data.Ratio
 import Data.Sequence (Seq, singleton)
 import Text.Printf (printf)
 import Text.ParserCombinators.Parsec hiding (newline)
@@ -102,14 +103,20 @@ instance Show Expr where
   show (ExprList l)        = joinShow ", " l
   show (Subseq l)          = joinShow " " l
   show (String s)          = cssShow s
-  show (Number n)          = show (fromRational n)
-  show (Dim (n, u))        = show (fromRational n) ++ u
+  show (Number n)          = showRational n
+  show (Dim (n, u))        = showRational n ++ u
   show (CSSFunc name args) = name ++ "(" ++ show args ++ ")"
   show (Color (Left n))    = n
   show (Color (Right (r,g,b))) = case Map.lookup (r,g,b) reverse_colors of
                                    Just name -> name
                                    Nothing -> printf "#%02x%02x%02x" r g b
   show (Bare s)            = s
+
+showRational r | rest == 0 = show whole
+               | otherwise = show (fromRational r)
+  where d = denominator r
+        n = numerator r
+        (whole, rest) = n `divMod` d
 
 ------------------------------------------------------------------------------------------
 -- the tokenizer and parser
