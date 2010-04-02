@@ -274,9 +274,9 @@ expression = plusExpr `chainr1` listOp
     unit         = choice (map string
                            ["em", "ex", "px", "cm", "mm", "in", "pt", "pc", "deg",
                             "rad", "grad", "ms", "s", "Hz", "kHz", "%"])
-    dqstring     = (pws $ char '"' >> many1 (noneOf "\n\\\"" <|> escape) ~>> char '"')
+    dqstring     = (pws $ char '"' >> many (noneOf "\n\\\"" <|> escape) ~>> char '"')
                    <?> "string"
-    sqstring     = (pws $ char '\'' >> many1 (noneOf "\n\\'" <|> escape) ~>> char '\'')
+    sqstring     = (pws $ char '\'' >> many (noneOf "\n\\'" <|> escape) ~>> char '\'')
                    <?> "string"
     hexcolor     = (pws $ char '#' >> ((try $ count 6 hexDigit) <|> count 3 hexDigit))
                    <?> "color"
