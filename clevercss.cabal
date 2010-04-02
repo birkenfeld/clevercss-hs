@@ -28,7 +28,7 @@ Library
     Build-Depends: parsec == 2.1.*
     CPP-Options: -DPARSEC2
   Else
-    Build-Depends: parsec == 3.0.*
+    Build-Depends: parsec == 3.*
   Exposed-Modules: Text.CSS.CleverCSS
   Other-Modules: Text.CSS.CleverCSSUtil
   Extensions: PatternGuards
@@ -42,5 +42,5 @@ Executable clevercss
     Build-Depends: parsec == 2.1.*
     CPP-Options: -DPARSEC2
   Else
-    Build-Depends: parsec == 3.0.*
+    Build-Depends: parsec == 3.*
 
