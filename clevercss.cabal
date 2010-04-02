@@ -16,11 +16,19 @@ Build-Type: Simple
 Flag splitBase
   Description: Choose the new smaller, split-up base package.
 
+Flag parsec2
+  Description: Are we using parsec2?
+
 Library
   If flag(splitBase)
-    Build-Depends: base >= 4, containers, parsec >= 3, mtl
+    Build-Depends: base >= 4, containers, mtl
   Else
-    Build-Depends: base < 4, parsec >= 3, mtl
+    Build-Depends: base < 4, mtl
+  If flag(parsec2)
+    Build-Depends: parsec == 2.1.*
+    CPP-Options: -DPARSEC2
+  Else
+    Build-Depends: parsec == 3.0.*
   Exposed-Modules: Text.CSS.CleverCSS
   Other-Modules: Text.CSS.CleverCSSUtil
   Extensions: PatternGuards
@@ -30,4 +38,9 @@ Executable clevercss
   Main-is: CCMain.hs
   Extensions: PatternGuards
   GHC-Options: -funbox-strict-fields
+  If flag(parsec2)
+    Build-Depends: parsec == 2.1.*
+    CPP-Options: -DPARSEC2
+  Else
+    Build-Depends: parsec == 3.0.*
 

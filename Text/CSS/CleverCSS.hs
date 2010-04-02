@@ -5,7 +5,7 @@
 --
 -- TODO: properly parse selectors before splitting them
 ------------------------------------------------------------------------------------------
-{-# LANGUAGE PatternGuards, TypeSynonymInstances #-}
+{-# LANGUAGE PatternGuards, TypeSynonymInstances, CPP #-}
 
 module Text.CSS.CleverCSS (cleverCSSConvert) where
 
@@ -25,6 +25,12 @@ import qualified Data.Map as Map
 import Text.CSS.CleverCSSUtil
 
 css_functions = ["url", "attr", "counter"] -- rgb() is special
+
+#if PARSEC2
+instance Applicative (GenParser toc st) where
+  pure  = return
+  (<*>) = ap
+#endif
 
 ------------------------------------------------------------------------------------------
 -- "AST" for clevercss templates
