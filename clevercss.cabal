@@ -1,6 +1,6 @@
 cabal-version: >=1.2
 Name: clevercss
-Version: 0.3
+Version: 0.2
 Category: Text
 Synopsis: A CSS preprocessor
 Description: CleverCSS is a CSS preprocessing library that allows defining variables and nesting selectors so that you don't need to Repeat Yourself.
@@ -21,14 +21,14 @@ Flag parsec2
 
 Library
   If flag(splitBase)
-    Build-Depends: base >= 4, containers, mtl
+    Build-Depends: base >= 4 && < 5, containers, mtl
   Else
     Build-Depends: base < 4, mtl
   If flag(parsec2)
-    Build-Depends: parsec == 2.1.*
+    Build-Depends: parsec >= 2.1
     CPP-Options: -DPARSEC2
   Else
-    Build-Depends: parsec == 3.*
+    Build-Depends: parsec >= 3 && < 4
   Exposed-Modules: Text.CSS.CleverCSS
   Other-Modules: Text.CSS.CleverCSSUtil
   Extensions: PatternGuards
@@ -39,8 +39,8 @@ Executable clevercss
   Extensions: PatternGuards
   GHC-Options: -funbox-strict-fields
   If flag(parsec2)
-    Build-Depends: parsec == 2.1.*
+    Build-Depends: parsec >= 2.1
     CPP-Options: -DPARSEC2
   Else
-    Build-Depends: parsec == 3.*
+    Build-Depends: parsec >= 3 && < 4
 
