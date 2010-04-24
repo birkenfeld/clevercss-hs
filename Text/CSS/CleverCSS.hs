@@ -284,7 +284,7 @@ expression = plusExpr `chainr1` listOp
     num          = (pws $ (perhaps $ char '-') +++ many1 digit +++
                         option "" (char '.' +:+ many1 digit)) <?> "number"
     dim          = (pws $ try $ num +++ ws +++ unit) <?> "dimension"
-    unit         = choice (map string
+    unit         = choice (map (try . string)
                            ["em", "ex", "px", "cm", "mm", "in", "pt", "pc", "deg",
                             "rad", "grad", "ms", "s", "Hz", "kHz", "%"])
     dqstring     = (pws $ char '"' >> many (noneOf "\n\\\"" <|> escape) ~>> char '"')
