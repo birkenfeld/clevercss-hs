@@ -1,6 +1,8 @@
 syntax: glob
 *.hi
 *.o
+*.css
 cov/
 .hpc/
 dist/
+clevercss
