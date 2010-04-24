@@ -45,7 +45,8 @@ a, b:
 base_padding = $base_padding + 4px;
 
 div.navigation:
-    height: 1.2em;
+    height: 1.2 em;
+    width: 1.2ex
     padding: 0.2cm + 1mm;
     color: rgb(40, 50, 7 * 24) // this is a comment too
     background-color: #606060.brighten(30%)
