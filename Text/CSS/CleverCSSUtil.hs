@@ -11,12 +11,11 @@ module Text.CSS.CleverCSSUtil (
              unitconv, inrange, readNum, readDim,
              trim, ltrim, rtrim, split, joinStr, joinShow,
              preprocess, hexToString, cssShow, showWithoutPos,
-             ratMod, roundRat,
+             ratMod, roundRat, showRat
             ) where
 
 import Control.Arrow ((&&&))
 import Control.Monad (msum)
-import Data.Char
 import Data.List hiding (partition)
 import Data.Ratio ((%), numerator, denominator)
 import Numeric (readFloat)
@@ -344,3 +343,8 @@ roundRat :: Rational -> Rational -> Rational
 roundRat num places =
     let exp = round places :: Integer in
     (round (num * (10^exp))) % (10^exp) -- XXX todo
+
+showRat :: Rational -> String
+showRat r | rest == 0 = show whole
+          | otherwise = printf "%f" (fromRational r :: Double)
+  where (whole, rest) = (denominator r) `divMod` (numerator r)
