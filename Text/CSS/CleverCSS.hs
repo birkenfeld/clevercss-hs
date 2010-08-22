@@ -1,10 +1,14 @@
 ------------------------------------------------------------------------------------------
--- CleverCSS in Haskell, (c) 2007, 2008 Georg Brandl. Licensed under the BSD license.
+-- |
+-- Module      :  Text.CSS.CleverCSS
+-- Copyright   :  (c) 2007-2010 Georg Brandl
+-- License     :  BSD (see the file LICENSE)
 --
--- Text.CSS.CleverCSS module: main parsing and evaluation.
---
--- TODO: properly parse selectors before splitting them
+-- Main parsing and evaluation module for CleverCSS.
 ------------------------------------------------------------------------------------------
+
+-- TODO: properly parse selectors before splitting them
+
 {-# LANGUAGE PatternGuards, TypeSynonymInstances, CPP #-}
 
 module Text.CSS.CleverCSS (cleverCSSConvert) where
@@ -59,7 +63,7 @@ data Expr = Plus Expr Expr                           -- x + y
           | ExprList [Expr]                          -- x, y, z
           | Subseq [Expr]                            -- x y z
           | Call Expr !String (Maybe Expr)           -- x.y([z])
-          | Var !String                              -- $x
+          | Var !String                              -- \$x
           | Bare !String                             -- x
           | String !String                           -- "x"
           | CSSFunc !String Expr                     -- url(x)
@@ -546,6 +550,7 @@ findError xs  = head $ [[Error e] | Error e <- xs] ++ [xs]
 findError2 cons xs = head $ [Error e | Error e <- xs] ++ [cons xs]
 
 -- evaluate a string
+evalString :: Dict Expr -> SourceName -> String -> Expr
 evalString varmap source string = case runParser exprseq [] "" string of
   Left err  -> Error $ showWithoutPos ("in " ++ source ++ ":") err
   Right []  -> String ""
@@ -574,7 +579,13 @@ format blocks = F.foldl (\x y -> x ++ formatBlock y) "" blocks where
   formatProp (Property _ _ _) = error "property has not exactly one value"
   formatProp _ = error "remaining subitems in block"
 
-cleverCSSConvert :: SourceName -> String -> [(String, String)] -> IO (Either String String)
+-- | Convert CleverCSS source to CSS.
+--   For documentation of available syntax and command line use, see
+--   <http://sandbox.pocoo.org/clevercss-hs/>.
+cleverCSSConvert :: SourceName                 -- ^ source (file) name
+                 -> String                     -- ^ CleverCSS input
+                 -> [(String, String)]         -- ^ initial variable assignments
+                 -> IO (Either String String)  -- ^ CSS output
 cleverCSSConvert name input initial_map =
   case runParser parser [0] name (preprocess input) of
       Left err    -> return . Left $ "Parse error " ++ show err
