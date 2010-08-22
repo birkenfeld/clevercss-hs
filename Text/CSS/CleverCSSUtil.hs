@@ -1,7 +1,10 @@
-------------------------------------------------------------------------------------------
--- CleverCSS in Haskell, (c) 2007, 2008 Georg Brandl. Licensed under the BSD license.
+-----------------------------------------------------------------------------------------
+-- |
+-- Module      :  Text.CSS.CleverCSSUtil
+-- Copyright   :  (c) 2007-2010 Georg Brandl
+-- License     :  BSD (see the file LICENSE)
 --
--- Text.CSS.CleverCSSUtil module: utilities.
+-- CleverCSS utilities.
 ------------------------------------------------------------------------------------------
 
 module Text.CSS.CleverCSSUtil (
