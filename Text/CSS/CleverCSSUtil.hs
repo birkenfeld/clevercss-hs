@@ -1,7 +1,7 @@
 -----------------------------------------------------------------------------------------
 -- |
 -- Module      :  Text.CSS.CleverCSSUtil
--- Copyright   :  (c) 2007-2010 Georg Brandl
+-- Copyright   :  (c) 2007-2011 Georg Brandl
 -- License     :  BSD (see the file LICENSE)
 --
 -- CleverCSS utilities.
@@ -350,4 +350,4 @@ roundRat num places =
 showRat :: Rational -> String
 showRat r | rest == 0 = show whole
           | otherwise = printf "%f" (fromRational r :: Double)
-  where (whole, rest) = (denominator r) `divMod` (numerator r)
+  where (whole, rest) = (numerator r) `divMod` (denominator r)
