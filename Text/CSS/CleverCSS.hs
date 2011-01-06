@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------------------
 -- |
 -- Module      :  Text.CSS.CleverCSS
--- Copyright   :  (c) 2007-2010 Georg Brandl
+-- Copyright   :  (c) 2007-2011 Georg Brandl
 -- License     :  BSD (see the file LICENSE)
 --
 -- Main parsing and evaluation module for CleverCSS.
