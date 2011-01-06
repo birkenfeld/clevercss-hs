@@ -1,11 +1,11 @@
 all:
-	ghc --make -W -o clevercss CCMain.hs
+	ghc --make -hide-package monads-fd -W -o clevercss CCMain.hs
 all-opt: clean
-	ghc --make -O1 -funbox-strict-fields -o clevercss CCMain.hs
+	ghc --make -hide-package monads-fd -O1 -funbox-strict-fields -o clevercss CCMain.hs
 all-prof:
-	ghc --make -prof -auto-all -o clevercss CCMain.hs
+	ghc --make -hide-package monads-fd -prof -auto-all -o clevercss CCMain.hs
 all-cov:
-	ghc --make -fhpc -auto-all -o clevercss CCMain.hs
+	ghc --make -hide-package monads-fd -fhpc -auto-all -o clevercss CCMain.hs
 	./clevercss -D supply_me_in_default_variables="5px + 2px" example.ccs
 	hpc markup --destdir=cov clevercss.tix
 test: all
